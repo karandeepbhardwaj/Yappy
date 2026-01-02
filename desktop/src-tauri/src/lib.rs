@@ -16,7 +16,6 @@ fn start_recording(state: State<AppState>, app: AppHandle) -> Result<(), String>
     if rec.is_some() {
         return Err("Already recording".into());
     }
-
     let handle = recording::start(&app).map_err(|e| e.to_string())?;
     *rec = Some(handle);
     Ok(())
@@ -43,20 +42,36 @@ fn transcribe(app: AppHandle, audio_path: String, language: String) -> Result<St
         return Err(format!("Model not found at {}", model_path.display()));
     }
 
-    // Find whisper-cli: check bundled sidecar location first, then PATH
-    let whisper_bin = find_binary("whisper-cli")?;
+    // Resolve whisper-cli sidecar path
+    let whisper_bin = resolve_sidecar(&app, "whisper-cli")?;
 
-    let output = StdCommand::new(&whisper_bin)
-        .args([
-            "-m",
-            model_path.to_str().unwrap(),
-            "-l",
-            &language,
-            "-np",
-            "-nt",
-            "-f",
-            &audio_path,
-        ])
+    // The bundled dylibs are in a lib/ directory next to the sidecar binary
+    let lib_dir = whisper_bin
+        .parent()
+        .map(|p| p.join("lib"))
+        .unwrap_or_default();
+
+    let mut cmd = StdCommand::new(&whisper_bin);
+    cmd.args([
+        "-m",
+        model_path.to_str().unwrap(),
+        "-l",
+        &language,
+        "-np",
+        "-nt",
+        "-f",
+        &audio_path,
+    ]);
+
+    // Set library path so whisper-cli finds its dylibs
+    if lib_dir.exists() {
+        #[cfg(target_os = "macos")]
+        cmd.env("DYLD_LIBRARY_PATH", &lib_dir);
+        #[cfg(target_os = "linux")]
+        cmd.env("LD_LIBRARY_PATH", &lib_dir);
+    }
+
+    let output = cmd
         .output()
         .map_err(|e| format!("Failed to run whisper-cli: {e}"))?;
 
@@ -65,21 +80,17 @@ fn transcribe(app: AppHandle, audio_path: String, language: String) -> Result<St
         return Err(format!("Whisper failed: {stderr}"));
     }
 
-    let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    Ok(text)
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
 #[tauri::command]
 fn paste_text(app: AppHandle, text: String) -> Result<(), String> {
-    // Write to clipboard
     app.clipboard()
         .write_text(&text)
         .map_err(|e| format!("Clipboard error: {e}"))?;
 
-    // Small delay for clipboard to be ready
     std::thread::sleep(std::time::Duration::from_millis(50));
 
-    // Simulate Cmd+V (macOS) or Ctrl+V (Windows/Linux)
     use enigo::{Enigo, Key, Keyboard, Settings};
     let mut enigo = Enigo::new(&Settings::default()).map_err(|e| format!("Enigo error: {e}"))?;
 
@@ -102,7 +113,6 @@ fn paste_text(app: AppHandle, text: String) -> Result<(), String> {
 
 #[tauri::command]
 fn check_vscode_connection() -> bool {
-    // Quick TCP check if VS Code WebSocket server is listening
     std::net::TcpStream::connect_timeout(
         &"127.0.0.1:19542".parse().unwrap(),
         std::time::Duration::from_millis(200),
@@ -110,37 +120,49 @@ fn check_vscode_connection() -> bool {
     .is_ok()
 }
 
-fn find_binary(name: &str) -> Result<String, String> {
-    // Check common locations for bundled binary
+/// Resolve a sidecar binary path. Tauri places sidecars next to the app binary
+/// with the target triple appended (e.g., `whisper-cli-aarch64-apple-darwin`).
+fn resolve_sidecar(app: &AppHandle, name: &str) -> Result<std::path::PathBuf, String> {
+    // In development, binaries are in src-tauri/binaries/
+    // In production, they're in Contents/MacOS/ (macOS) or next to exe (Windows)
     let exe_dir = std::env::current_exe()
         .ok()
         .and_then(|p| p.parent().map(|d| d.to_path_buf()));
 
     if let Some(dir) = &exe_dir {
-        // macOS: binary is in Contents/MacOS/ alongside the app
-        let candidate = dir.join(name);
-        if candidate.exists() {
-            return Ok(candidate.to_string_lossy().to_string());
+        // Check for target-triple suffixed name (Tauri sidecar convention)
+        let triple = built_target_triple();
+        let suffixed = dir.join(format!("{name}-{triple}"));
+        if suffixed.exists() {
+            return Ok(suffixed);
+        }
+
+        // Check plain name (development)
+        let plain = dir.join(name);
+        if plain.exists() {
+            return Ok(plain);
         }
     }
 
     // Fall back to system PATH
-    let which = if cfg!(target_os = "windows") {
-        "where"
-    } else {
-        "which"
-    };
-
+    let which = if cfg!(target_os = "windows") { "where" } else { "which" };
     let output = StdCommand::new(which)
         .arg(name)
         .output()
         .map_err(|_| format!("{name} not found"))?;
 
     if output.status.success() {
-        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+        Ok(std::path::PathBuf::from(
+            String::from_utf8_lossy(&output.stdout).trim(),
+        ))
     } else {
-        Err(format!("{name} not found. Make sure it's installed or bundled."))
+        Err(format!("{name} not found"))
     }
+}
+
+fn built_target_triple() -> &'static str {
+    // Set by Cargo at compile time
+    env!("TARGET", "unknown-unknown-unknown")
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -154,18 +176,17 @@ pub fn run() {
             recording: Mutex::new(None),
         })
         .setup(|app| {
-            // Register global shortcut: Cmd+Shift+Y (macOS) / Ctrl+Shift+Y
-            #[cfg(target_os = "macos")]
             let shortcut: Shortcut = "CommandOrControl+Shift+Y".parse().unwrap();
-            #[cfg(not(target_os = "macos"))]
-            let shortcut: Shortcut = "Ctrl+Shift+Y".parse().unwrap();
 
             let app_handle = app.handle().clone();
-            app.global_shortcut().on_shortcut(shortcut, move |_app, _shortcut, event| {
-                if event.state == ShortcutState::Pressed {
-                    let _ = app_handle.emit("toggle-dictation", ());
-                }
-            })?;
+            app.global_shortcut().on_shortcut(
+                shortcut,
+                move |_app, _shortcut, event| {
+                    if event.state == ShortcutState::Pressed {
+                        let _ = app_handle.emit("toggle-dictation", ());
+                    }
+                },
+            )?;
 
             Ok(())
         })

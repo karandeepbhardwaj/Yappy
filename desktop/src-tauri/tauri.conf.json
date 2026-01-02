@@ -35,8 +35,13 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "externalBin": [
+      "binaries/whisper-cli",
+      "binaries/rec"
+    ],
     "resources": [
-      "resources/models/*"
+      "resources/models/*",
+      "binaries/lib/*"
     ],
     "macOS": {
       "dmg": {
