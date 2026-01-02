@@ -78,9 +78,14 @@ function App() {
         const raw = await invoke<string>("transcribe", { audioPath: wavPath, language: "en" });
         setRawText(raw);
 
+        // Try Copilot refinement if VS Code is connected
         if (vsConnected) {
-          // TODO: refine via WebSocket to VS Code
-          setRefinedText(raw); // For now, use raw text
+          try {
+            const refined = await invoke<string>("refine_via_copilot", { text: raw });
+            setRefinedText(refined);
+          } catch {
+            setRefinedText(raw); // Fallback to raw on error
+          }
         } else {
           setRefinedText(raw);
         }

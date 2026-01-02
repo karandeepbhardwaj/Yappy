@@ -1,9 +1,14 @@
 use std::process::Command as StdCommand;
 use std::sync::Mutex;
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{
+    menu::{MenuBuilder, MenuItemBuilder},
+    tray::TrayIconBuilder,
+    AppHandle, Emitter, Manager, State,
+};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
+mod copilot;
 mod recording;
 
 struct AppState {
@@ -42,11 +47,12 @@ fn transcribe(app: AppHandle, audio_path: String, language: String) -> Result<St
         return Err(format!("Model not found at {}", model_path.display()));
     }
 
-    // Resolve whisper-cli sidecar path
     let whisper_bin = resolve_sidecar(&app, "whisper-cli")?;
 
-    // The bundled dylibs are in a lib/ directory next to the sidecar binary
-    let lib_dir = whisper_bin
+    // Dylibs are in Resources/binaries/lib/ in the .app bundle
+    let resource_lib = resource_dir.join("binaries").join("lib");
+    // Also check next to the binary
+    let exe_lib = whisper_bin
         .parent()
         .map(|p| p.join("lib"))
         .unwrap_or_default();
@@ -63,12 +69,17 @@ fn transcribe(app: AppHandle, audio_path: String, language: String) -> Result<St
         &audio_path,
     ]);
 
-    // Set library path so whisper-cli finds its dylibs
-    if lib_dir.exists() {
+    // Set library path — check both possible locations
+    let lib_path = if resource_lib.exists() {
+        resource_lib
+    } else {
+        exe_lib
+    };
+    if lib_path.exists() {
         #[cfg(target_os = "macos")]
-        cmd.env("DYLD_LIBRARY_PATH", &lib_dir);
+        cmd.env("DYLD_LIBRARY_PATH", &lib_path);
         #[cfg(target_os = "linux")]
-        cmd.env("LD_LIBRARY_PATH", &lib_dir);
+        cmd.env("LD_LIBRARY_PATH", &lib_path);
     }
 
     let output = cmd
@@ -81,6 +92,11 @@ fn transcribe(app: AppHandle, audio_path: String, language: String) -> Result<St
     }
 
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+#[tauri::command]
+fn refine_via_copilot(text: String) -> Result<String, String> {
+    copilot::refine_text(&text)
 }
 
 #[tauri::command]
@@ -120,31 +136,23 @@ fn check_vscode_connection() -> bool {
     .is_ok()
 }
 
-/// Resolve a sidecar binary path. Tauri places sidecars next to the app binary
-/// with the target triple appended (e.g., `whisper-cli-aarch64-apple-darwin`).
-fn resolve_sidecar(app: &AppHandle, name: &str) -> Result<std::path::PathBuf, String> {
-    // In development, binaries are in src-tauri/binaries/
-    // In production, they're in Contents/MacOS/ (macOS) or next to exe (Windows)
+fn resolve_sidecar(_app: &AppHandle, name: &str) -> Result<std::path::PathBuf, String> {
     let exe_dir = std::env::current_exe()
         .ok()
         .and_then(|p| p.parent().map(|d| d.to_path_buf()));
 
     if let Some(dir) = &exe_dir {
-        // Check for target-triple suffixed name (Tauri sidecar convention)
         let triple = built_target_triple();
         let suffixed = dir.join(format!("{name}-{triple}"));
         if suffixed.exists() {
             return Ok(suffixed);
         }
-
-        // Check plain name (development)
         let plain = dir.join(name);
         if plain.exists() {
             return Ok(plain);
         }
     }
 
-    // Fall back to system PATH
     let which = if cfg!(target_os = "windows") { "where" } else { "which" };
     let output = StdCommand::new(which)
         .arg(name)
@@ -161,7 +169,6 @@ fn resolve_sidecar(app: &AppHandle, name: &str) -> Result<std::path::PathBuf, St
 }
 
 fn built_target_triple() -> &'static str {
-    // Set by Cargo at compile time
     env!("TARGET", "unknown-unknown-unknown")
 }
 
@@ -176,8 +183,8 @@ pub fn run() {
             recording: Mutex::new(None),
         })
         .setup(|app| {
+            // Global shortcut
             let shortcut: Shortcut = "CommandOrControl+Shift+Y".parse().unwrap();
-
             let app_handle = app.handle().clone();
             app.global_shortcut().on_shortcut(
                 shortcut,
@@ -188,12 +195,36 @@ pub fn run() {
                 },
             )?;
 
+            // System tray
+            let show = MenuItemBuilder::with_id("show", "Show SunYapper").build(app)?;
+            let quit = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
+            let menu = MenuBuilder::new(app).items(&[&show, &quit]).build()?;
+
+            let _tray = TrayIconBuilder::new()
+                .tooltip("SunYapper")
+                .icon(app.default_window_icon().cloned().unwrap())
+                .menu(&menu)
+                .on_menu_event(|app: &AppHandle, event: tauri::menu::MenuEvent| match event.id().as_ref() {
+                    "show" => {
+                        if let Some(w) = app.get_webview_window("main") {
+                            w.show().ok();
+                            w.set_focus().ok();
+                        }
+                    }
+                    "quit" => {
+                        app.exit(0);
+                    }
+                    _ => {}
+                })
+                .build(app)?;
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             start_recording,
             stop_recording,
             transcribe,
+            refine_via_copilot,
             paste_text,
             check_vscode_connection,
         ])
