@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import { AudioRecorder } from './AudioRecorder';
 import { ModelManager } from '../stt/ModelManager';
 import { CopilotRefiner } from '../llm/CopilotRefiner';
 import { TextInserter } from '../output/TextInserter';
@@ -10,13 +12,16 @@ export class AudioPanel {
 
   private readonly panel: vscode.WebviewPanel;
   private readonly extensionUri: vscode.Uri;
+  private readonly audioRecorder: AudioRecorder;
   private readonly modelManager: ModelManager;
   private readonly copilotRefiner: CopilotRefiner;
   private readonly textInserter: TextInserter;
+  private timerInterval: ReturnType<typeof setInterval> | null = null;
   private disposables: vscode.Disposable[] = [];
 
   public static createOrShow(
     extensionUri: vscode.Uri,
+    audioRecorder: AudioRecorder,
     modelManager: ModelManager,
     copilotRefiner: CopilotRefiner,
     textInserter: TextInserter
@@ -43,7 +48,7 @@ export class AudioPanel {
     );
 
     AudioPanel.currentPanel = new AudioPanel(
-      panel, extensionUri, modelManager, copilotRefiner, textInserter
+      panel, extensionUri, audioRecorder, modelManager, copilotRefiner, textInserter
     );
     return AudioPanel.currentPanel;
   }
@@ -51,12 +56,14 @@ export class AudioPanel {
   private constructor(
     panel: vscode.WebviewPanel,
     extensionUri: vscode.Uri,
+    audioRecorder: AudioRecorder,
     modelManager: ModelManager,
     copilotRefiner: CopilotRefiner,
     textInserter: TextInserter
   ) {
     this.panel = panel;
     this.extensionUri = extensionUri;
+    this.audioRecorder = audioRecorder;
     this.modelManager = modelManager;
     this.copilotRefiner = copilotRefiner;
     this.textInserter = textInserter;
@@ -70,38 +77,70 @@ export class AudioPanel {
     );
   }
 
-  // toggleRecording is now a no-op signal: webview owns recording state.
-  // Calling this posts a 'toggleRecording' message so the webview simulates
-  // the Record/Stop button click from the keyboard shortcut.
   public toggleRecording() {
-    this.panel.webview.postMessage({ type: 'toggleRecording' });
-  }
-
-  private async handleMessage(msg: {
-    type: string;
-    text?: string;
-    message?: string;
-    pcm16?: number[];
-    sampleRate?: number;
-  }) {
-    switch (msg.type) {
-      case 'audioData':
-        await this.processAudioData(msg.pcm16!, msg.sampleRate ?? 16000);
-        break;
-      case 'transcription':
-        await this.handleTranscription(msg.text!);
-        break;
-      case 'insertText':
-        await this.textInserter.insert(msg.text!);
-        break;
-      case 'error':
-        vscode.window.showErrorMessage(`SunYapper: ${msg.message}`);
-        break;
+    if (this.audioRecorder.isRecording()) {
+      this.stopAndProcess();
+    } else {
+      this.startRecording();
     }
   }
 
-  // Received raw PCM from webview; ask webview to run WASM transcription.
-  private async processAudioData(pcm16: number[], sampleRate: number) {
+  private startRecording() {
+    try {
+      this.audioRecorder.start();
+      this.panel.webview.postMessage({ type: 'setState', state: 'recording' });
+
+      // Send fake audio levels for waveform visualization
+      this.timerInterval = setInterval(() => {
+        if (this.audioRecorder.isRecording()) {
+          this.panel.webview.postMessage({
+            type: 'audioLevel',
+            level: Math.random() * 0.5 + 0.1,
+          });
+        }
+      }, 80);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      vscode.window.showErrorMessage(`SunYapper: Failed to start recording — ${msg}`);
+      this.panel.webview.postMessage({ type: 'setState', state: 'idle' });
+    }
+  }
+
+  private async stopAndProcess() {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+
+    this.panel.webview.postMessage({ type: 'setState', state: 'processing' });
+
+    let wavPath: string | null = null;
+    try {
+      wavPath = await this.audioRecorder.stop();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      vscode.window.showErrorMessage(`SunYapper: ${msg}`);
+      this.panel.webview.postMessage({ type: 'setState', state: 'idle' });
+      return;
+    }
+
+    if (!wavPath) {
+      this.panel.webview.postMessage({ type: 'error', message: 'No audio captured.' });
+      return;
+    }
+
+    try {
+      // Read WAV as PCM Int16 and send to webview for WASM transcription
+      const pcm16 = AudioRecorder.readWavAsInt16(wavPath);
+      await this.sendForTranscription(pcm16);
+    } finally {
+      if (wavPath && fs.existsSync(wavPath)) {
+        try { fs.unlinkSync(wavPath); } catch { /* ignore */ }
+      }
+    }
+  }
+
+  private async sendForTranscription(pcm16: number[]) {
     const config = getConfig();
     const model = config.whisperModel;
 
@@ -125,10 +164,7 @@ export class AudioPanel {
     }
 
     const modelPath = this.modelManager.getModelPath(model);
-    const modelWebviewUri = this.panel.webview.asWebviewUri(
-      vscode.Uri.file(modelPath)
-    );
-
+    const modelWebviewUri = this.panel.webview.asWebviewUri(vscode.Uri.file(modelPath));
     const wasmJsUri = this.panel.webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, 'media', 'wasm', 'main.js')
     );
@@ -136,14 +172,37 @@ export class AudioPanel {
     this.panel.webview.postMessage({
       type: 'transcribeAudio',
       pcm16,
-      sampleRate,
+      sampleRate: 16000,
       language: config.language,
       modelUrl: modelWebviewUri.toString(),
       wasmJsUrl: wasmJsUri.toString(),
     });
   }
 
-  // Received transcription from webview WASM; drive Copilot refinement.
+  private async handleMessage(msg: {
+    type: string;
+    text?: string;
+    message?: string;
+  }) {
+    switch (msg.type) {
+      case 'record':
+        this.startRecording();
+        break;
+      case 'stop':
+        await this.stopAndProcess();
+        break;
+      case 'transcription':
+        await this.handleTranscription(msg.text!);
+        break;
+      case 'insertText':
+        await this.textInserter.insert(msg.text!);
+        break;
+      case 'error':
+        vscode.window.showErrorMessage(`SunYapper: ${msg.message}`);
+        break;
+    }
+  }
+
   private async handleTranscription(rawText: string) {
     if (!rawText || rawText.trim().length === 0) {
       this.panel.webview.postMessage({
@@ -186,14 +245,10 @@ export class AudioPanel {
 
     const nonce = getNonce();
 
-    // media-src: allows getUserMedia audio streams (blob:) and webview resources
-    // worker-src: not needed — ScriptProcessorNode runs on main thread
-    // wasm-unsafe-eval: required for WebAssembly.instantiate()
     const csp = [
       `default-src 'none'`,
       `style-src ${webview.cspSource}`,
       `script-src 'nonce-${nonce}' 'wasm-unsafe-eval' ${webview.cspSource}`,
-      `media-src blob: ${webview.cspSource}`,
       `connect-src ${webview.cspSource}`,
     ].join('; ');
 
@@ -255,6 +310,12 @@ export class AudioPanel {
   }
 
   private dispose() {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+    }
+    if (this.audioRecorder.isRecording()) {
+      this.audioRecorder.stop().catch(() => { /* ignore on dispose */ });
+    }
     AudioPanel.currentPanel = undefined;
     this.panel.dispose();
     this.disposables.forEach((d) => d.dispose());
