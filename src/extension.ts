@@ -12,7 +12,7 @@ let statusBarItem: vscode.StatusBarItem;
 export function activate(context: vscode.ExtensionContext) {
   const extPath = context.extensionUri.fsPath;
   const audioRecorder = new AudioRecorder(extPath);
-  const modelManager = new ModelManager(context.globalStorageUri.fsPath);
+  const modelManager = new ModelManager(context.globalStorageUri.fsPath, extPath);
   const whisperEngine = new WhisperEngine(modelManager, extPath);
   const copilotRefiner = new CopilotRefiner();
   const textInserter = new TextInserter();
@@ -61,15 +61,15 @@ export function activate(context: vscode.ExtensionContext) {
       const items = models.map((m) => ({
         label: m.name,
         description: m.size,
-        detail: m.downloaded ? 'Downloaded' : 'Not downloaded',
-        downloaded: m.downloaded,
+        detail: m.downloaded ? 'Downloaded' : m.bundled ? 'Bundled (ready to use)' : 'Not downloaded',
+        needsDownload: !m.downloaded && !m.bundled,
       }));
 
       const selected = await vscode.window.showQuickPick(items, {
         placeHolder: 'Select a Whisper model to download',
       });
 
-      if (selected && !selected.downloaded) {
+      if (selected && selected.needsDownload) {
         try {
           await modelManager.downloadModel(selected.label);
           vscode.window.showInformationMessage(
@@ -79,9 +79,9 @@ export function activate(context: vscode.ExtensionContext) {
           const msg = err instanceof Error ? err.message : String(err);
           vscode.window.showErrorMessage(`SunYapper: Download failed — ${msg}`);
         }
-      } else if (selected?.downloaded) {
+      } else if (selected && !selected.needsDownload) {
         vscode.window.showInformationMessage(
-          `SunYapper: ${selected.label} model is already downloaded.`
+          `SunYapper: ${selected.label} model is already available.`
         );
       }
     })
