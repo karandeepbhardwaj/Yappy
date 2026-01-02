@@ -20,16 +20,21 @@ Speech-to-text runs **entirely on your machine** via WebAssembly. Text refinemen
 - GitHub Copilot extension (signed in with enterprise or individual plan)
 - Node.js 18+ (for building from source)
 
-No external tools (sox, ffmpeg, whisper-cli) required.
+**sox and whisper-cli are bundled automatically** — no manual installation needed. The build script copies them from your system (Homebrew on macOS) and bundles them with the extension.
 
 ## Quick Start
 
 ```bash
+# One-time: install sox and whisper-cpp (needed to bundle binaries)
+brew install sox whisper-cpp    # macOS
+
 git clone https://github.com/karandeepbhardwaj/SunYapper.git
 cd SunYapper
-npm install          # installs deps + downloads whisper WASM artifacts
+npm install          # installs deps + bundles sox & whisper-cli binaries
 npm run compile
 ```
+
+After building, the extension is fully self-contained — no system dependencies needed at runtime.
 
 Then in VS Code:
 1. Open the `SunYapper` folder
@@ -67,17 +72,18 @@ Extension Host (Node.js):
   → Insert refined text at editor cursor
 ```
 
-- **Audio capture**: Web Audio API (`getUserMedia` + `ScriptProcessorNode`) — runs in the WebView, no native dependencies
-- **Speech-to-text**: whisper.cpp compiled to WebAssembly — runs in the WebView, fully offline
+- **Audio capture**: Bundled `sox`/`rec` binary — runs as a child process, no system install needed
+- **Speech-to-text**: Bundled `whisper-cli` binary — fully offline, no system install needed
 - **Text refinement**: VS Code Language Model API — uses your existing Copilot access
+- **Self-contained**: Binaries are bundled inside the extension (~3MB for macOS arm64)
 - **Zero data leakage**: Audio never leaves your machine. Only refined text prompts go through Copilot's approved channel.
 
 ## Enterprise Use
 
 SunYapper is designed for restricted enterprise environments:
 
-- **Zero external dependencies** — no sox, ffmpeg, whisper-cli, or native addons to install
-- STT runs as WebAssembly inside VS Code — no CLI tools on PATH required
+- **Zero runtime dependencies** — sox and whisper-cli are bundled inside the extension
+- No CLI tools need to be on PATH — everything ships in the VSIX
 - LLM refinement goes through Copilot, which your enterprise already approved
 - Clone the repo, build, and install as a VSIX — no marketplace needed
 - MIT licensed, fully open source
