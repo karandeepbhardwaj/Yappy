@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { AudioPanel } from './audio/AudioPanel';
 import { AudioRecorder } from './audio/AudioRecorder';
 import { ModelManager } from './stt/ModelManager';
+import { WhisperEngine } from './stt/WhisperEngine';
 import { CopilotRefiner } from './llm/CopilotRefiner';
 import { TextInserter } from './output/TextInserter';
 import { getConfig } from './config/Settings';
@@ -11,6 +12,7 @@ let statusBarItem: vscode.StatusBarItem;
 export function activate(context: vscode.ExtensionContext) {
   const audioRecorder = new AudioRecorder();
   const modelManager = new ModelManager(context.globalStorageUri.fsPath);
+  const whisperEngine = new WhisperEngine(modelManager);
   const copilotRefiner = new CopilotRefiner();
   const textInserter = new TextInserter();
 
@@ -28,6 +30,7 @@ export function activate(context: vscode.ExtensionContext) {
       const panel = AudioPanel.createOrShow(
         context.extensionUri,
         audioRecorder,
+        whisperEngine,
         modelManager,
         copilotRefiner,
         textInserter
@@ -42,6 +45,7 @@ export function activate(context: vscode.ExtensionContext) {
       AudioPanel.createOrShow(
         context.extensionUri,
         audioRecorder,
+        whisperEngine,
         modelManager,
         copilotRefiner,
         textInserter
