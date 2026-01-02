@@ -102,5 +102,9 @@
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.95.0",
     "typescript": "^5.5.0"
+  },
+  "dependencies": {
+    "@types/ws": "^8.18.1",
+    "ws": "^8.19.0"
   }
 }
