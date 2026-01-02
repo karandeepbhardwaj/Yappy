@@ -42,15 +42,28 @@ fn transcribe(app: AppHandle, audio_path: String, language: String) -> Result<St
         .resource_dir()
         .map_err(|e| format!("No resource dir: {e}"))?;
 
-    let model_path = resource_dir.join("models").join("ggml-base.bin");
-    if !model_path.exists() {
-        return Err(format!("Model not found at {}", model_path.display()));
-    }
+    // Tauri nests resources under resources/ subdirectory in the bundle
+    let model_path = resource_dir.join("resources").join("models").join("ggml-base.bin");
+    let model_path = if model_path.exists() {
+        model_path
+    } else {
+        // Fallback: direct path (dev mode)
+        let alt = resource_dir.join("models").join("ggml-base.bin");
+        if alt.exists() {
+            alt
+        } else {
+            return Err(format!("Model not found. Checked:\n  {}\n  {}", model_path.display(), alt.display()));
+        }
+    };
 
     let whisper_bin = resolve_sidecar(&app, "whisper-cli")?;
 
-    // Dylibs are in Resources/binaries/lib/ in the .app bundle
-    let resource_lib = resource_dir.join("binaries").join("lib");
+    // Dylibs are in Resources/binaries/lib/ (or Resources/resources/binaries/lib/) in the .app bundle
+    let resource_lib = if resource_dir.join("binaries").join("lib").exists() {
+        resource_dir.join("binaries").join("lib")
+    } else {
+        resource_dir.join("resources").join("binaries").join("lib")    // Tauri nesting
+    };
     // Also check next to the binary
     let exe_lib = whisper_bin
         .parent()
