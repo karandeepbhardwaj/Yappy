@@ -80,7 +80,7 @@
   function resizeCanvas() {
     var rect = canvas.parentElement.getBoundingClientRect();
     canvas.width = rect.width - 16;
-    canvas.height = 80;
+    canvas.height = 32;
   }
 
   function getMutedColor() {

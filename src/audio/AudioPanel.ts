@@ -251,7 +251,7 @@ export class AudioPanel {
 <body>
   <div class="header">
     <div class="brand">
-      <img src="${logoUri}" alt="SunYapper" style="width:22px;height:22px;border-radius:4px;">
+      <img src="${logoUri}" alt="SunYapper" style="width:20px;height:20px;overflow:hidden;display:block;">
       <h2>SunYapper</h2>
     </div>
     <span id="status" class="status-badge status-idle">idle</span>
