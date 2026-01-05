@@ -28,47 +28,12 @@ body {
   gap: 0;
 }
 
-/* ── Header ── */
-.header {
+/* ── Record Row (button + status inline) ── */
+.record-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
+  gap: 10px;
 }
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.brand-icon {
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.brand-icon span {
-  display: block;
-  width: 3px;
-  border-radius: 2px;
-  background: var(--accent);
-}
-
-.brand-icon span:nth-child(1) { height: 8px; }
-.brand-icon span:nth-child(2) { height: 14px; }
-.brand-icon span:nth-child(3) { height: 20px; }
-.brand-icon span:nth-child(4) { height: 14px; }
-.brand-icon span:nth-child(5) { height: 8px; }
-
-.brand h2 {
-  font-size: 1em;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
 .status-badge {
   padding: 4px 12px;
   border-radius: 100px;
