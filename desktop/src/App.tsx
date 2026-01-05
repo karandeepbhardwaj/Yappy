@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import logoSvg from "./assets/logo.svg";
 
 type AppState = "idle" | "recording" | "processing" | "done";
 
@@ -122,16 +123,16 @@ function App() {
   return (
     <div className="app">
       <div className="titlebar">
-        <div className="titlebar-brand">
-          <div className="titlebar-icon">
-            <span /><span /><span /><span /><span />
-          </div>
+        <div className="titlebar-left">
+          <img src={logoSvg} alt="SunYapper" className="titlebar-logo" />
           <h1>SunYapper</h1>
         </div>
-        <div
-          className={`connection-dot ${vsConnected ? "connected" : "disconnected"}`}
-          title={vsConnected ? "VS Code connected" : "VS Code not connected"}
-        />
+        <div className="titlebar-right">
+          <div className="connection-indicator">
+            <div className={`connection-dot ${vsConnected ? "connected" : ""}`} />
+            <span>{vsConnected ? "Copilot" : "Offline"}</span>
+          </div>
+        </div>
       </div>
 
       <div className="content">

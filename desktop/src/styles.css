@@ -53,9 +53,7 @@ body {
   display: flex;
   flex-direction: column;
   background: var(--bg);
-  border-radius: 12px;
   overflow: hidden;
-  border: 1px solid var(--border);
 }
 
 /* ── Titlebar ── */
@@ -63,35 +61,26 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: 0 12px;
+  height: 40px;
   -webkit-app-region: drag;
   user-select: none;
+  flex-shrink: 0;
 }
 
-.titlebar-brand {
+.titlebar-left {
   display: flex;
   align-items: center;
   gap: 8px;
+  /* Leave space for macOS traffic lights */
+  padding-left: 68px;
 }
 
-.titlebar-icon {
-  display: flex;
-  align-items: flex-end;
-  gap: 2px;
-  height: 16px;
+.titlebar-logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
 }
-
-.titlebar-icon span {
-  display: block;
-  width: 2.5px;
-  border-radius: 2px;
-  background: var(--accent);
-}
-.titlebar-icon span:nth-child(1) { height: 6px; }
-.titlebar-icon span:nth-child(2) { height: 11px; }
-.titlebar-icon span:nth-child(3) { height: 16px; }
-.titlebar-icon span:nth-child(4) { height: 11px; }
-.titlebar-icon span:nth-child(5) { height: 6px; }
 
 .titlebar h1 {
   font-size: 13px;
@@ -99,17 +88,51 @@ body {
   letter-spacing: -0.01em;
 }
 
-.connection-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--text-muted);
-  transition: background 0.3s;
+.titlebar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   -webkit-app-region: no-drag;
 }
 
+.connection-indicator {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.connection-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: background 0.3s;
+}
+
 .connection-dot.connected { background: var(--success); }
-.connection-dot.disconnected { background: var(--text-muted); }
+
+.window-controls {
+  display: flex;
+  gap: 6px;
+  -webkit-app-region: no-drag;
+}
+
+.window-btn {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  opacity: 0.8;
+}
+
+.window-btn:hover { opacity: 1; }
+.window-btn.close { background: #ff5f57; }
+.window-btn.minimize { background: #febc2e; }
+.window-btn.maximize { background: #28c840; }
 
 /* ── Main Content ── */
 .content {
