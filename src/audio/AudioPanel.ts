@@ -233,24 +233,23 @@ export class AudioPanel {
       vscode.Uri.joinPath(this.extensionUri, 'media', 'webview', 'panel.js')
     );
 
-    const logoUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, 'media', 'webview', 'logo.svg')
-    );
-
     const nonce = getNonce();
+    const inlineLogo = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="20" height="20" style="display:block"><g stroke="#FF8C00" stroke-width="8" stroke-linecap="round"><line x1="100" y1="15" x2="100" y2="35"/><line x1="100" y1="165" x2="100" y2="185"/><line x1="15" y1="100" x2="35" y2="100"/><line x1="165" y1="100" x2="185" y2="100"/><line x1="40" y1="40" x2="54" y2="54"/><line x1="160" y1="160" x2="146" y2="146"/><line x1="40" y1="160" x2="54" y2="146"/><line x1="160" y1="40" x2="146" y2="54"/><animateTransform attributeName="transform" type="rotate" values="0 100 100;360 100 100" dur="24s" repeatCount="indefinite"/></g><circle cx="100" cy="100" r="45" fill="#FFD700" stroke="#FF8C00" stroke-width="4"/><g><circle cx="85" cy="90" r="9" fill="#FFF" stroke="#4A3F35" stroke-width="2"/><circle cx="115" cy="90" r="9" fill="#FFF" stroke="#4A3F35" stroke-width="2"/><g><circle cx="85" cy="90" r="4" fill="#4A3F35"/><circle cx="115" cy="90" r="4" fill="#4A3F35"/><animateTransform attributeName="transform" type="translate" values="-3,0;-3,0;3,-3;3,-3;0,4;0,4;-3,0" keyTimes="0;0.3;0.35;0.63;0.68;0.95;1" dur="12s" repeatCount="indefinite"/></g><path d="M 82 105 Q 100 125 118 105" fill="none" stroke="#4A3F35" stroke-width="3" stroke-linecap="round"/></g></svg>`;
 
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}'; img-src ${webview.cspSource};">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
+
   <link rel="stylesheet" href="${cssUri}">
   <title>SunYapper</title>
 </head>
 <body>
   <div class="record-section">
     <div class="record-row">
+      ${inlineLogo}
       <button class="record-btn" id="btn-record" title="Start recording">
         <svg class="icon-mic" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
         <div class="icon-stop"></div>
