@@ -2,7 +2,6 @@ out/
 node_modules/
 models/*.bin
 !models/.gitkeep
-media/wasm/
 bin/*/
 *.vsix
 .vscode-test/

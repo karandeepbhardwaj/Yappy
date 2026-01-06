@@ -38,6 +38,7 @@
 html, body, #root {
   height: 100%;
   overflow: hidden;
+  background: transparent;
 }
 
 body {
@@ -46,6 +47,8 @@ body {
   color: var(--text);
   background: transparent;
   -webkit-font-smoothing: antialiased;
+  margin: 0;
+  padding: 0;
 }
 
 .app {
@@ -54,46 +57,46 @@ body {
   flex-direction: column;
   background: var(--bg);
   overflow: hidden;
+  border-radius: 12px;
 }
 
-/* ── Titlebar / Drag region ── */
+/* ── Titlebar (draggable) ── */
 .titlebar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
-  height: 44px;
-  -webkit-app-region: drag;
-  user-select: none;
+  padding: 0 14px;
+  height: 40px;
   flex-shrink: 0;
-  cursor: grab;
+  user-select: none;
+  -webkit-app-region: drag;
 }
 
-.titlebar-left {
+.window-controls {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  /* Leave space for macOS traffic lights */
-  padding-left: 68px;
-}
-
-.titlebar-logo {
-  width: 28px;
-  height: 28px;
-  pointer-events: none;
-}
-
-.titlebar h1 {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.titlebar-right {
-  display: flex;
-  align-items: center;
   gap: 8px;
   -webkit-app-region: no-drag;
+}
+
+.win-btn {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+.win-btn.close { background: #ff5f57; }
+.win-btn.close:hover { background: #ff3b30; }
+.win-btn.minimize { background: #febc2e; }
+.win-btn.minimize:hover { background: #f0a500; }
+
+.titlebar-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: -0.01em;
 }
 
 .connection-indicator {
@@ -140,23 +143,33 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 0 16px 16px;
-  gap: 16px;
+  padding: 0 16px 12px;
+  gap: 8px;
   overflow: hidden;
+  min-height: 0;
 }
 
-/* ── Record Section ── */
+/* ── Record Section (fixed height, never grows) ── */
 .record-area {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 16px 0;
+  gap: 6px;
+  padding: 4px 0;
+  flex-shrink: 0;
+}
+
+.mascot {
+  display: flex;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
 }
 
 .record-btn {
-  width: 56px;
-  height: 56px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: none;
   cursor: pointer;
@@ -200,7 +213,7 @@ body {
 }
 
 .timer {
-  font-size: 1.5em;
+  font-size: 1.1em;
   font-weight: 200;
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);
@@ -216,8 +229,9 @@ body {
 /* ── Waveform ── */
 .waveform {
   width: 100%;
-  max-width: 280px;
-  height: 40px;
+  max-width: 240px;
+  height: 28px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -275,6 +289,7 @@ body {
   display: flex;
   flex-direction: column;
   border-radius: var(--radius-sm);
+  min-height: 80px;
   border: 1px solid var(--border);
   background: var(--bg-card);
   overflow: hidden;

@@ -10,19 +10,18 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
         "title": "SunYapper",
         "width": 380,
-        "height": 560,
+        "height": 620,
         "minWidth": 320,
         "minHeight": 400,
         "resizable": true,
-        "decorations": true,
-        "transparent": false,
-        "alwaysOnTop": true,
-        "hiddenTitle": true,
-        "titleBarStyle": "Overlay"
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true
       }
     ],
     "security": {

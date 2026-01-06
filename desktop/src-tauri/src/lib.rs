@@ -1,10 +1,6 @@
 use std::process::Command as StdCommand;
 use std::sync::Mutex;
-use tauri::{
-    menu::{MenuBuilder, MenuItemBuilder},
-    tray::TrayIconBuilder,
-    AppHandle, Emitter, Manager, State,
-};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
@@ -207,29 +203,6 @@ pub fn run() {
                     }
                 },
             )?;
-
-            // System tray
-            let show = MenuItemBuilder::with_id("show", "Show SunYapper").build(app)?;
-            let quit = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
-            let menu = MenuBuilder::new(app).items(&[&show, &quit]).build()?;
-
-            let _tray = TrayIconBuilder::new()
-                .tooltip("SunYapper")
-                .icon(app.default_window_icon().cloned().unwrap())
-                .menu(&menu)
-                .on_menu_event(|app: &AppHandle, event: tauri::menu::MenuEvent| match event.id().as_ref() {
-                    "show" => {
-                        if let Some(w) = app.get_webview_window("main") {
-                            w.show().ok();
-                            w.set_focus().ok();
-                        }
-                    }
-                    "quit" => {
-                        app.exit(0);
-                    }
-                    _ => {}
-                })
-                .build(app)?;
 
             Ok(())
         })
