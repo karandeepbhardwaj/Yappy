@@ -47,7 +47,7 @@ export class CopilotBridge {
     return new vscode.Disposable(() => this.stop());
   }
 
-  private async handleMessage(ws: WebSocket, msg: { type: string; id?: string; text?: string }) {
+  private async handleMessage(ws: WebSocket, msg: { type: string; id?: string; text?: string; language?: string }) {
     switch (msg.type) {
       case 'refine': {
         if (!msg.text || !msg.id) {
@@ -55,7 +55,7 @@ export class CopilotBridge {
           return;
         }
         try {
-          const refined = await this.copilotRefiner.refine(msg.text);
+          const refined = await this.copilotRefiner.refine(msg.text, msg.language);
           ws.send(JSON.stringify({ type: 'refined', id: msg.id, text: refined }));
         } catch (err: unknown) {
           const errMsg = err instanceof Error ? err.message : String(err);

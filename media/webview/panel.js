@@ -14,6 +14,16 @@
   const refinedTextEl = document.getElementById('refined-text');
   const cardRaw = document.getElementById('card-raw');
   const cardRefined = document.getElementById('card-refined');
+  const selLang = document.getElementById('sel-lang');
+  const selModel = document.getElementById('sel-model');
+
+  // Send settings changes to extension host
+  selLang.addEventListener('change', function () {
+    vscode.postMessage({ type: 'settingChanged', key: 'language', value: selLang.value });
+  });
+  selModel.addEventListener('change', function () {
+    vscode.postMessage({ type: 'settingChanged', key: 'whisperModel', value: selModel.value });
+  });
 
   let startTime = 0;
   let timerInterval = null;

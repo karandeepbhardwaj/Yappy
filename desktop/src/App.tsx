@@ -13,6 +13,7 @@ function App() {
   const [refinedText, setRefinedText] = useState("");
   const [vsConnected, setVsConnected] = useState(false);
   const [levels, setLevels] = useState<number[]>(Array(40).fill(0));
+  const [language, setLanguage] = useState("en");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef(0);
   const levelRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -77,13 +78,13 @@ function App() {
 
       try {
         const wavPath = await invoke<string>("stop_recording");
-        const raw = await invoke<string>("transcribe", { audioPath: wavPath, language: "en" });
+        const raw = await invoke<string>("transcribe", { audioPath: wavPath, language });
         setRawText(raw);
 
         // Try Copilot refinement if VS Code is connected
         if (vsConnected) {
           try {
-            const refined = await invoke<string>("refine_via_copilot", { text: raw });
+            const refined = await invoke<string>("refine_via_copilot", { text: raw, language });
             setRefinedText(refined);
           } catch {
             setRefinedText(raw); // Fallback to raw on error
@@ -111,13 +112,17 @@ function App() {
     }
   }, [state, vsConnected]);
 
-  const handlePaste = async () => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
     const text = refinedText || rawText;
     if (!text) return;
     try {
       await invoke("paste_text", { text });
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch (err: any) {
-      console.error("Paste failed:", err);
+      console.error("Copy failed:", err);
     }
   };
 
@@ -201,10 +206,10 @@ function App() {
         <div className="actions">
           <button
             className="btn btn-primary"
-            onClick={handlePaste}
+            onClick={handleCopy}
             disabled={state !== "done"}
           >
-            Paste to app
+            {copied ? "Copied!" : "Copy to clipboard"}
           </button>
           <button
             className="btn btn-ghost"
@@ -217,7 +222,26 @@ function App() {
       </div>
 
       <div className="footer">
-        <kbd>Cmd+Shift+Y</kbd> to toggle from anywhere
+        <div className="settings-row">
+          <label className="setting">
+            <span>Language</span>
+            <select value={language} onChange={(e) => setLanguage(e.target.value)}>
+              <option value="en">English</option>
+              <option value="es">Spanish</option>
+              <option value="fr">French</option>
+              <option value="de">German</option>
+              <option value="hi">Hindi</option>
+              <option value="zh">Chinese</option>
+              <option value="ja">Japanese</option>
+              <option value="ko">Korean</option>
+              <option value="pt">Portuguese</option>
+              <option value="ar">Arabic</option>
+              <option value="auto">Auto-detect</option>
+            </select>
+          </label>
+          <span className="setting-info">Model: base</span>
+        </div>
+        <div className="shortcut-hint"><kbd>Cmd+Shift+Y</kbd> to toggle from anywhere</div>
       </div>
     </div>
   );
