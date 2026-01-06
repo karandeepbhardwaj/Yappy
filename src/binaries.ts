@@ -24,7 +24,10 @@ export function getBinaryPath(name: string, extensionPath: string): string {
     // not found on PATH
   }
 
+  const installHint = platform === 'win32'
+    ? `download from https://github.com/ggml-org/whisper.cpp/releases (whisper-cli) or https://sourceforge.net/projects/sox/ (sox)`
+    : `brew install ${name === 'rec' ? 'sox' : 'whisper-cpp'}`;
   throw new Error(
-    `"${name}" not found. Either bundle it (npm run download-binaries) or install: brew install ${name === 'rec' ? 'sox' : 'whisper-cpp'}`
+    `"${name}" not found. Either bundle it (npm run download-binaries) or install: ${installHint}`
   );
 }

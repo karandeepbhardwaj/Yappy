@@ -112,6 +112,57 @@ function downloadModel() {
   }
 }
 
+function bundleWhisperWindows(triple) {
+  const dest = path.join(SIDECAR_DIR, `whisper-cli-${triple}.exe`);
+  if (fs.existsSync(dest)) { console.log('  whisper-cli: already bundled'); return; }
+
+  const BIN_DIR = path.join(__dirname, '..', '..', 'bin', 'win32-x64');
+  const src = path.join(BIN_DIR, 'whisper-cli.exe');
+  if (!fs.existsSync(src)) {
+    console.log('  WARNING: whisper-cli.exe not found in bin/win32-x64/. Run: node scripts/download-binaries.js');
+    return;
+  }
+
+  fs.copyFileSync(src, dest);
+
+  // Copy DLLs alongside the sidecar
+  const dlls = fs.readdirSync(BIN_DIR).filter(f => f.endsWith('.dll'));
+  for (const dll of dlls) {
+    const dllDest = path.join(SIDECAR_DIR, dll);
+    if (!fs.existsSync(dllDest)) {
+      fs.copyFileSync(path.join(BIN_DIR, dll), dllDest);
+      console.log(`  copied DLL: ${dll}`);
+    }
+  }
+
+  console.log('  whisper-cli: bundled');
+}
+
+function bundleSoxWindows(triple) {
+  const dest = path.join(SIDECAR_DIR, `rec-${triple}.exe`);
+  if (fs.existsSync(dest)) { console.log('  rec (sox): already bundled'); return; }
+
+  const BIN_DIR = path.join(__dirname, '..', '..', 'bin', 'win32-x64');
+  const src = path.join(BIN_DIR, 'sox.exe');
+  if (!fs.existsSync(src)) {
+    console.log('  WARNING: sox.exe not found in bin/win32-x64/. Run: node scripts/download-binaries.js');
+    return;
+  }
+
+  fs.copyFileSync(src, dest);
+
+  // Copy DLLs alongside the sidecar
+  const dlls = fs.readdirSync(BIN_DIR).filter(f => f.endsWith('.dll'));
+  for (const dll of dlls) {
+    const dllDest = path.join(SIDECAR_DIR, dll);
+    if (!fs.existsSync(dllDest)) {
+      fs.copyFileSync(path.join(BIN_DIR, dll), dllDest);
+    }
+  }
+
+  console.log('  rec (sox): bundled');
+}
+
 function main() {
   const triple = getTargetTriple();
   if (!triple) { console.error('Could not determine Rust target triple'); process.exit(1); }
@@ -121,8 +172,13 @@ function main() {
   if (!fs.existsSync(SIDECAR_DIR)) fs.mkdirSync(SIDECAR_DIR, { recursive: true });
 
   console.log('[binaries]');
-  bundleWhisper(triple);
-  bundleSox(triple);
+  if (process.platform === 'win32') {
+    bundleWhisperWindows(triple);
+    bundleSoxWindows(triple);
+  } else {
+    bundleWhisper(triple);
+    bundleSox(triple);
+  }
 
   console.log('\n[model]');
   downloadModel();

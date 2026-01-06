@@ -16,11 +16,16 @@ pub fn start(app: &AppHandle) -> Result<RecordingHandle, Box<dyn std::error::Err
     let rec_bin = super::resolve_sidecar(app, "rec")
         .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
 
+    #[cfg(windows)]
+    let mut args = vec!["-d".to_string()];
+    #[cfg(unix)]
+    let mut args = vec![];
+    args.extend(["-r", "16000", "-c", "1", "-b", "16", "-e", "signed-integer"].map(String::from));
+    args.push(wav_path.clone());
+
     let child = Command::new(&rec_bin)
-        .args([
-            "-r", "16000", "-c", "1", "-b", "16", "-e", "signed-integer", &wav_path,
-        ])
-        .stdin(std::process::Stdio::null())
+        .args(&args)
+        .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .spawn()
@@ -39,7 +44,8 @@ pub fn stop(mut handle: RecordingHandle) -> Result<String, Box<dyn std::error::E
 
     #[cfg(windows)]
     {
-        let _ = handle.child.kill();
+        drop(handle.child.stdin.take());
+        std::thread::sleep(std::time::Duration::from_millis(500));
     }
 
     let _ = handle.child.wait();
