@@ -21,6 +21,10 @@ export class CopilotBridge {
   start(): vscode.Disposable {
     this.server = new WebSocketServer({ port: PORT, host: '127.0.0.1' });
 
+    this.server.on('listening', () => {
+      console.log(`SunYapper Bridge: listening on ws://127.0.0.1:${PORT}`);
+    });
+
     this.server.on('connection', (ws) => {
       this.clients.add(ws);
       this.updateStatus();
@@ -47,7 +51,7 @@ export class CopilotBridge {
     return new vscode.Disposable(() => this.stop());
   }
 
-  private async handleMessage(ws: WebSocket, msg: { type: string; id?: string; text?: string; language?: string }) {
+  private async handleMessage(ws: WebSocket, msg: { type: string; id?: string; text?: string; language?: string; model?: string }) {
     switch (msg.type) {
       case 'refine': {
         if (!msg.text || !msg.id) {
@@ -55,6 +59,11 @@ export class CopilotBridge {
           return;
         }
         try {
+          // Temporarily update the copilot model family if specified by the desktop app
+          if (msg.model) {
+            await vscode.workspace.getConfiguration('sunyapper')
+              .update('copilotModelFamily', msg.model, vscode.ConfigurationTarget.Global);
+          }
           const refined = await this.copilotRefiner.refine(msg.text, msg.language);
           ws.send(JSON.stringify({ type: 'refined', id: msg.id, text: refined }));
         } catch (err: unknown) {

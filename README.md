@@ -22,7 +22,12 @@
 ---
 
 <p align="center">
-  <img src="docs/app-screenshot.png" width="380" alt="SunYapper Desktop App">
+  <img src="docs/idle.png" width="700" alt="SunYapper — Idle">
+</p>
+
+<p align="center">
+  <img src="docs/recording.png" width="700" alt="SunYapper — Live Transcription">
+  <img src="docs/refining.png" width="700" alt="SunYapper — Refining with Copilot">
 </p>
 
 ---

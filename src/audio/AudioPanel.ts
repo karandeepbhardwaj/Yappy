@@ -292,69 +292,67 @@ export class AudioPanel {
   <title>SunYapper</title>
 </head>
 <body>
-  <div class="record-section">
-    <div class="mascot">${mascotSvg}</div>
-    <div class="record-row">
-      <button class="record-btn" id="btn-record" title="Start recording">
-        <svg class="icon-mic" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
-        <div class="icon-stop"></div>
-      </button>
-      <span id="status" class="status-badge status-idle">idle</span>
-    </div>
-    <div class="timer" id="timer">0:00.0</div>
-    <div class="waveform-wrap">
-      <canvas id="waveform"></canvas>
-    </div>
-  </div>
-
-  <div class="controls">
-    <button class="btn-secondary" id="btn-insert" disabled>Insert at cursor</button>
-  </div>
-
-  <div class="divider"></div>
-
-  <div class="output-section">
-    <div class="output-card" id="card-raw">
-      <div class="output-card-header">
-        <span class="output-card-label">Transcription</span>
+  <div class="app-layout">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-left">
+        <span id="status" class="status-badge status-idle">idle</span>
       </div>
-      <div class="output-card-body" id="raw-text" data-placeholder="Press the record button and start speaking..."></div>
-    </div>
-    <div class="output-card refined" id="card-refined">
-      <div class="output-card-header">
-        <span class="output-card-label">Refined <span class="arrow">&rarr;</span> Copilot</span>
+      <div class="header-right">
+        <button class="record-btn" id="btn-record" title="Start recording">
+          <svg class="icon-mic" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+          <div class="icon-stop"></div>
+        </button>
+        <button class="btn-secondary" id="btn-insert" disabled>Insert at cursor</button>
       </div>
-      <div class="output-card-body" id="refined-text" data-placeholder="AI-refined text will appear here"></div>
+    </div>
+
+    <!-- Two-column output -->
+    <div class="columns">
+      <div class="column">
+        <div class="column-header">
+          <span class="column-label">Transcript</span>
+          <span class="timer" id="timer">0:00.0</span>
+        </div>
+        <div class="column-body" id="raw-text" data-placeholder="Press record and start speaking..."></div>
+      </div>
+      <div class="column refined">
+        <div class="column-header">
+          <span class="column-label">Refined Output</span>
+        </div>
+        <div class="column-body" id="refined-text" data-placeholder="Structured text will appear here."></div>
+      </div>
+    </div>
+
+    <!-- Settings bar -->
+    <div class="settings-bar">
+      <label class="setting">
+        <span>Language</span>
+        <select id="sel-lang">
+          <option value="en">English</option>
+          <option value="es">Spanish</option>
+          <option value="fr">French</option>
+          <option value="de">German</option>
+          <option value="hi">Hindi</option>
+          <option value="zh">Chinese</option>
+          <option value="ja">Japanese</option>
+          <option value="ko">Korean</option>
+          <option value="pt">Portuguese</option>
+          <option value="ar">Arabic</option>
+          <option value="auto">Auto-detect</option>
+        </select>
+      </label>
+      <label class="setting">
+        <span>Model</span>
+        <select id="sel-model">
+          <option value="tiny">tiny</option>
+          <option value="base" selected>base</option>
+          <option value="small">small</option>
+        </select>
+      </label>
+      <span class="hint"><kbd>Cmd/Ctrl+Shift+Y</kbd></span>
     </div>
   </div>
-
-  <div class="settings-bar">
-    <label class="setting">
-      <span>Language</span>
-      <select id="sel-lang">
-        <option value="en">English</option>
-        <option value="es">Spanish</option>
-        <option value="fr">French</option>
-        <option value="de">German</option>
-        <option value="hi">Hindi</option>
-        <option value="zh">Chinese</option>
-        <option value="ja">Japanese</option>
-        <option value="ko">Korean</option>
-        <option value="pt">Portuguese</option>
-        <option value="ar">Arabic</option>
-        <option value="auto">Auto-detect</option>
-      </select>
-    </label>
-    <label class="setting">
-      <span>Model</span>
-      <select id="sel-model">
-        <option value="tiny">tiny</option>
-        <option value="base" selected>base</option>
-        <option value="small">small</option>
-      </select>
-    </label>
-  </div>
-  <div class="hint">Press <kbd>Cmd/Ctrl+Shift+Y</kbd> to toggle recording</div>
 
   <script nonce="${nonce}" src="${jsUri}"></script>
 </body>

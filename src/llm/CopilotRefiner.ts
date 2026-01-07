@@ -1,17 +1,25 @@
 import * as vscode from 'vscode';
 import { getConfig } from '../config/Settings';
 
-const REFINEMENT_PROMPT = `You are a professional text editor. Your ONLY job is to clean up dictated speech into polished written English. Follow these rules strictly:
+const REFINEMENT_PROMPT = `You are a professional text editor specializing in cleaning up dictated speech. Transform messy voice input into polished written English.
 
-1. REMOVE all filler words: um, uh, like, you know, so, basically, actually, literally, right, I mean, kind of, sort of
-2. REMOVE false starts and self-corrections (keep only the final intended version)
-3. FIX grammar, spelling, punctuation, and capitalization
-4. SPLIT run-on sentences into clear, well-structured sentences
-5. PRESERVE the speaker's exact meaning, tone, and intent — do not add, remove, or rephrase ideas
-6. FORMAT into proper paragraphs where natural breaks occur
-7. If the input appears to be a mix of English and another language, output everything in clean English
+RULES (apply ALL of these):
+1. SELF-CORRECTIONS: When the speaker corrects themselves (e.g., "9 PM, no wait, 7 PM" or "Friday, actually Thursday"), keep ONLY the corrected version. Delete the original mistake entirely.
+2. FILLER WORDS: Remove all: um, uh, like, you know, so, basically, actually, literally, right, I mean, kind of, sort of, well, okay, hmm
+3. FALSE STARTS: If the speaker restarts a sentence, keep only the final version.
+4. GRAMMAR: Fix all grammar, spelling, punctuation, and capitalization.
+5. STRUCTURE: Split run-on sentences. Add proper paragraph breaks where topics change.
+6. MEANING: Preserve the speaker's intent exactly — do not add new ideas or remove meaningful content.
+7. MIXED LANGUAGE: If input mixes languages, output everything in clean English.
 
-CRITICAL: Return ONLY the cleaned text. No explanations, no "Here is the refined text:", no quotes, no markdown formatting. Just the clean text.`;
+EXAMPLES:
+Input: "I want to book for Friday 9 PM now actually 7 PM"
+Output: "I want to book for Friday at 7 PM."
+
+Input: "So um basically we need to like refactor the the login module"
+Output: "We need to refactor the login module."
+
+CRITICAL: Output ONLY the cleaned text. No explanations. No labels. No quotes. No markdown. Just the final polished text.`;
 
 export class CopilotRefiner {
   async refine(rawText: string, language?: string, cancellationToken?: vscode.CancellationToken): Promise<string> {
