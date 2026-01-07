@@ -42,6 +42,15 @@ jobs:
         with:
           workspaces: desktop/src-tauri -> target
 
+      - name: Install sox and whisper-cpp (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: brew install sox whisper-cpp
+
+      - name: Download binaries (Windows)
+        if: matrix.platform == 'windows-latest'
+        run: node scripts/download-binaries.js
+        working-directory: .
+
       - name: Install desktop dependencies
         working-directory: desktop
         run: npm ci
