@@ -21,6 +21,12 @@
 
 ---
 
+<p align="center">
+  <img src="docs/app-screenshot.png" width="380" alt="SunYapper Desktop App">
+</p>
+
+---
+
 ## What is SunYapper?
 
 SunYapper lets you **speak naturally and get polished English text** — in any application. It uses local speech-to-text (whisper.cpp) and GitHub Copilot for AI text refinement. No cloud STT, no API keys, no subscriptions.
