@@ -225,6 +225,13 @@ function main() {
 
   if (!fs.existsSync(SIDECAR_DIR)) fs.mkdirSync(SIDECAR_DIR, { recursive: true });
 
+  // Ensure lib/ exists (Tauri requires binaries/lib/* glob to match something)
+  const libDir = path.join(SIDECAR_DIR, 'lib');
+  if (!fs.existsSync(libDir)) {
+    fs.mkdirSync(libDir, { recursive: true });
+    fs.writeFileSync(path.join(libDir, '.gitkeep'), '');
+  }
+
   console.log('[binaries]');
   if (process.platform === 'win32') {
     bundleWhisperWindows(triple);
