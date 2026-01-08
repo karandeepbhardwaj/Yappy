@@ -112,29 +112,67 @@ function downloadModel() {
   }
 }
 
+function downloadAndExtract(url, destDir, label) {
+  const zipPath = path.join(destDir, '_download.zip');
+  console.log(`  Downloading ${label}...`);
+  try {
+    execSync(`curl -L -o "${zipPath}" "${url}"`, { stdio: 'inherit', timeout: 180000 });
+    // Use PowerShell on Windows for extraction
+    if (process.platform === 'win32') {
+      execSync(`powershell -Command "Expand-Archive -Force -Path '${zipPath}' -DestinationPath '${destDir}'"`, { stdio: 'pipe' });
+    } else {
+      execSync(`unzip -o "${zipPath}" -d "${destDir}"`, { stdio: 'pipe' });
+    }
+    fs.unlinkSync(zipPath);
+    console.log(`  ${label} downloaded`);
+    return true;
+  } catch (err) {
+    console.log(`  WARNING: Failed to download ${label}: ${err.message}`);
+    if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
+    return false;
+  }
+}
+
 function bundleWhisperWindows(triple) {
   const dest = path.join(SIDECAR_DIR, `whisper-cli-${triple}.exe`);
   if (fs.existsSync(dest)) { console.log('  whisper-cli: already bundled'); return; }
 
+  // Check pre-downloaded binaries first
   const BIN_DIR = path.join(__dirname, '..', '..', 'bin', 'win32-x64');
-  const src = path.join(BIN_DIR, 'whisper-cli.exe');
-  if (!fs.existsSync(src)) {
-    console.log('  WARNING: whisper-cli.exe not found in bin/win32-x64/. Run: node scripts/download-binaries.js');
+  let srcDir = BIN_DIR;
+
+  if (!fs.existsSync(path.join(BIN_DIR, 'whisper-cli.exe'))) {
+    // Download directly into sidecar dir
+    console.log('  whisper-cli not pre-downloaded, fetching...');
+    const tmpDir = path.join(SIDECAR_DIR, '_whisper_tmp');
+    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+    if (!downloadAndExtract('https://github.com/ggml-org/whisper.cpp/releases/latest/download/whisper-bin-x64.zip', tmpDir, 'whisper-cli')) return;
+    srcDir = tmpDir;
+  }
+
+  // Find whisper-cli.exe (might be in a subdirectory)
+  const candidates = [
+    path.join(srcDir, 'whisper-cli.exe'),
+    ...fs.readdirSync(srcDir).filter(f => fs.statSync(path.join(srcDir, f)).isDirectory()).map(d => path.join(srcDir, d, 'whisper-cli.exe'))
+  ].filter(f => fs.existsSync(f));
+
+  if (candidates.length === 0) {
+    console.log('  WARNING: whisper-cli.exe not found after download');
     return;
   }
 
-  fs.copyFileSync(src, dest);
+  const whisperDir = path.dirname(candidates[0]);
+  fs.copyFileSync(candidates[0], dest);
 
-  // Copy DLLs alongside the sidecar
-  const dlls = fs.readdirSync(BIN_DIR).filter(f => f.endsWith('.dll'));
+  // Copy DLLs
+  const dlls = fs.readdirSync(whisperDir).filter(f => f.endsWith('.dll'));
   for (const dll of dlls) {
-    const dllDest = path.join(SIDECAR_DIR, dll);
-    if (!fs.existsSync(dllDest)) {
-      fs.copyFileSync(path.join(BIN_DIR, dll), dllDest);
-      console.log(`  copied DLL: ${dll}`);
-    }
+    fs.copyFileSync(path.join(whisperDir, dll), path.join(SIDECAR_DIR, dll));
+    console.log(`  copied DLL: ${dll}`);
   }
 
+  // Cleanup tmp
+  if (srcDir !== BIN_DIR) fs.rmSync(srcDir, { recursive: true, force: true });
   console.log('  whisper-cli: bundled');
 }
 
@@ -143,23 +181,39 @@ function bundleSoxWindows(triple) {
   if (fs.existsSync(dest)) { console.log('  rec (sox): already bundled'); return; }
 
   const BIN_DIR = path.join(__dirname, '..', '..', 'bin', 'win32-x64');
-  const src = path.join(BIN_DIR, 'sox.exe');
-  if (!fs.existsSync(src)) {
-    console.log('  WARNING: sox.exe not found in bin/win32-x64/. Run: node scripts/download-binaries.js');
+  let srcDir = BIN_DIR;
+
+  if (!fs.existsSync(path.join(BIN_DIR, 'sox.exe'))) {
+    console.log('  sox not pre-downloaded, fetching...');
+    const tmpDir = path.join(SIDECAR_DIR, '_sox_tmp');
+    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+    if (!downloadAndExtract('https://sourceforge.net/projects/sox/files/sox/14.4.2/sox-14.4.2-win32.zip', tmpDir, 'sox')) return;
+    srcDir = tmpDir;
+  }
+
+  // Find sox.exe (might be in sox-14.4.2/ subdirectory)
+  const candidates = [
+    path.join(srcDir, 'sox.exe'),
+    ...fs.readdirSync(srcDir).filter(f => { try { return fs.statSync(path.join(srcDir, f)).isDirectory(); } catch { return false; } }).map(d => path.join(srcDir, d, 'sox.exe'))
+  ].filter(f => fs.existsSync(f));
+
+  if (candidates.length === 0) {
+    console.log('  WARNING: sox.exe not found after download');
     return;
   }
 
-  fs.copyFileSync(src, dest);
+  const soxDir = path.dirname(candidates[0]);
+  // Copy sox.exe as rec (Tauri sidecar name)
+  fs.copyFileSync(candidates[0], dest);
 
-  // Copy DLLs alongside the sidecar
-  const dlls = fs.readdirSync(BIN_DIR).filter(f => f.endsWith('.dll'));
+  // Copy DLLs
+  const dlls = fs.readdirSync(soxDir).filter(f => f.endsWith('.dll'));
   for (const dll of dlls) {
-    const dllDest = path.join(SIDECAR_DIR, dll);
-    if (!fs.existsSync(dllDest)) {
-      fs.copyFileSync(path.join(BIN_DIR, dll), dllDest);
-    }
+    fs.copyFileSync(path.join(soxDir, dll), path.join(SIDECAR_DIR, dll));
   }
 
+  // Cleanup tmp
+  if (srcDir !== BIN_DIR) fs.rmSync(srcDir, { recursive: true, force: true });
   console.log('  rec (sox): bundled');
 }
 
