@@ -75,13 +75,4 @@ export class AudioRecorder {
 
     return null;
   }
-
-  static readWavAsInt16(wavPath: string): number[] {
-    const buf = fs.readFileSync(wavPath);
-    const pcm: number[] = [];
-    for (let i = 44; i < buf.length - 1; i += 2) {
-      pcm.push(buf.readInt16LE(i));
-    }
-    return pcm;
-  }
 }

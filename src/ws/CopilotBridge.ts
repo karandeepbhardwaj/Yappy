@@ -59,12 +59,7 @@ export class CopilotBridge {
           return;
         }
         try {
-          // Temporarily update the copilot model family if specified by the desktop app
-          if (msg.model) {
-            await vscode.workspace.getConfiguration('sunyapper')
-              .update('copilotModelFamily', msg.model, vscode.ConfigurationTarget.Global);
-          }
-          const refined = await this.copilotRefiner.refine(msg.text, msg.language);
+          const refined = await this.copilotRefiner.refine(msg.text, msg.language, undefined, msg.model);
           ws.send(JSON.stringify({ type: 'refined', id: msg.id, text: refined }));
         } catch (err: unknown) {
           const errMsg = err instanceof Error ? err.message : String(err);

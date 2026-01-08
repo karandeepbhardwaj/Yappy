@@ -83,22 +83,21 @@ export default function App() {
         setRawText(fullRaw.trim());
 
         // Refine the full text
+        let finalRefined = fullRaw.trim();
         if (vsConnected && fullRaw.trim()) {
           try {
-            const refined = await invoke<string>("refine_via_copilot", { text: fullRaw.trim(), language, model });
-            setRefinedText(refined);
+            finalRefined = await invoke<string>("refine_via_copilot", { text: fullRaw.trim(), language, model });
           } catch {
-            setRefinedText(fullRaw.trim());
+            // keep finalRefined as raw
           }
-        } else {
-          setRefinedText(fullRaw.trim());
         }
+        setRefinedText(finalRefined);
 
         if (fullRaw.trim()) {
-          setTranscriptHistory((prev) => [{ raw: fullRaw.trim(), refined: refinedText || fullRaw.trim() }, ...prev].slice(0, 10));
+          setTranscriptHistory((prev) => [{ raw: fullRaw.trim(), refined: finalRefined }, ...prev].slice(0, 10));
         }
-      } catch (err: any) {
-        setRawText(`Error: ${err}`);
+      } catch (err: unknown) {
+        setRawText(`Error: ${String(err)}`);
       } finally {
         // Clean up temp WAV files after everything is done
         invoke("cleanup_recording_files").catch(() => {});
@@ -112,11 +111,11 @@ export default function App() {
         await invoke("start_recording");
         setStatus("recording");
         startInterimLoop();
-      } catch (err: any) {
-        setRawText(`Error: ${err}`);
+      } catch (err: unknown) {
+        setRawText(`Error: ${String(err)}`);
       }
     }
-  }, [status, language, vsConnected]);
+  }, [status, language, vsConnected, model]);
 
   const copyToClipboard = async () => {
     try {

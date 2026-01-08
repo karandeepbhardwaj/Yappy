@@ -22,12 +22,12 @@ Output: "We need to refactor the login module."
 CRITICAL: Output ONLY the cleaned text. No explanations. No labels. No quotes. No markdown. Just the final polished text.`;
 
 export class CopilotRefiner {
-  async refine(rawText: string, language?: string, cancellationToken?: vscode.CancellationToken): Promise<string> {
+  async refine(rawText: string, language?: string, cancellationToken?: vscode.CancellationToken, modelFamily?: string): Promise<string> {
     const config = getConfig();
 
     const models = await vscode.lm.selectChatModels({
       vendor: 'copilot',
-      family: config.copilotModelFamily,
+      family: modelFamily ?? config.copilotModelFamily,
     });
 
     if (models.length === 0) {
@@ -53,15 +53,21 @@ export class CopilotRefiner {
       vscode.LanguageModelChatMessage.User(rawText),
     ];
 
-    const token = cancellationToken ?? new vscode.CancellationTokenSource().token;
-    const response = await model.sendRequest(messages, {}, token);
+    const ownSource = cancellationToken ? null : new vscode.CancellationTokenSource();
+    const token = cancellationToken ?? ownSource!.token;
 
-    let refined = '';
-    for await (const chunk of response.text) {
-      refined += chunk;
+    try {
+      const response = await model.sendRequest(messages, {}, token);
+
+      let refined = '';
+      for await (const chunk of response.text) {
+        refined += chunk;
+      }
+
+      return refined.trim();
+    } finally {
+      ownSource?.dispose();
     }
-
-    return refined.trim();
   }
 
   async isAvailable(): Promise<boolean> {

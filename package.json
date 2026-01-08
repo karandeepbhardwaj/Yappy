@@ -2,7 +2,7 @@
   "name": "sunyapper",
   "displayName": "SunYapper",
   "description": "Offline voice-to-text dictation with Copilot LLM refinement. Free, secure, enterprise-friendly.",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "publisher": "kdb",
   "license": "MIT",
   "icon": "icon.png",
