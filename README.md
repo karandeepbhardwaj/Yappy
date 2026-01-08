@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="docs/icon.png" width="128" height="128" alt="SunYapper">
-</p>
-
 <h1 align="center">SunYapper</h1>
 
 <p align="center">
@@ -23,11 +19,6 @@
 
 <p align="center">
   <img src="docs/idle.png" width="700" alt="SunYapper — Idle">
-</p>
-
-<p align="center">
-  <img src="docs/recording.png" width="700" alt="SunYapper — Live Transcription">
-  <img src="docs/refining.png" width="700" alt="SunYapper — Refining with Copilot">
 </p>
 
 ---
