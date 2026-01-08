@@ -132,36 +132,42 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  // First-use check
-  const hasSeenWelcome = context.globalState.get<boolean>('sunyapper.welcomed');
-  if (!hasSeenWelcome) {
-    showWelcome(context, modelManager);
-  }
+  // Auto-download model on first activation if none available
+  autoDownloadModel(context, modelManager);
 }
 
-async function showWelcome(
+async function autoDownloadModel(
   context: vscode.ExtensionContext,
   modelManager: ModelManager
 ) {
-  const config = getConfig();
-  const action = await vscode.window.showInformationMessage(
-    'Welcome to SunYapper! You need to download a Whisper model before dictating. Download now?',
-    'Download Model',
-    'Later'
-  );
+  // Check if any model is already available (downloaded or bundled)
+  const available = modelManager.findAnyAvailableModel('base');
+  if (available) return; // Already have a model, nothing to do
 
-  if (action === 'Download Model') {
-    try {
-      await modelManager.downloadModel(config.whisperModel);
-      vscode.window.showInformationMessage(
-        `SunYapper: ${config.whisperModel} model ready! Press Cmd+Shift+Y to start dictating.`
-      );
-    } catch {
-      // User cancelled or download failed — they can try again later
+  // No model available — download base model automatically
+  const config = getConfig();
+  const model = config.whisperModel;
+
+  try {
+    await modelManager.downloadModel(model);
+    vscode.window.showInformationMessage(
+      `SunYapper: ${model} model ready! Press Cmd+Shift+Y to start dictating.`
+    );
+  } catch {
+    // Download failed (offline?) — show a one-time hint
+    const hasNotified = context.globalState.get<boolean>('sunyapper.downloadHintShown');
+    if (!hasNotified) {
+      vscode.window.showWarningMessage(
+        'SunYapper: Could not auto-download the whisper model. Run "SunYapper: Download Whisper Model" when you have internet.',
+        'Download Now'
+      ).then(action => {
+        if (action === 'Download Now') {
+          vscode.commands.executeCommand('sunyapper.downloadModel');
+        }
+      });
+      context.globalState.update('sunyapper.downloadHintShown', true);
     }
   }
-
-  context.globalState.update('sunyapper.welcomed', true);
 }
 
 export function deactivate() {
