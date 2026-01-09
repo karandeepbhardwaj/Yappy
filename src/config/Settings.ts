@@ -6,6 +6,9 @@ export interface SunYapperConfig {
   refinementEnabled: boolean;
   copilotModelFamily: string;
   insertMode: 'cursor' | 'replace';
+  actionsEnabled: boolean;
+  actionAutoExecuteSafe: boolean;
+  actionMode: 'dictation' | 'actions';
 }
 
 export function getConfig(): SunYapperConfig {
@@ -16,5 +19,8 @@ export function getConfig(): SunYapperConfig {
     refinementEnabled: config.get<boolean>('refinementEnabled', true),
     copilotModelFamily: config.get<string>('copilotModelFamily', 'gpt-4o'),
     insertMode: config.get<'cursor' | 'replace'>('insertMode', 'cursor'),
+    actionsEnabled: config.get<boolean>('actionsEnabled', true),
+    actionAutoExecuteSafe: config.get<boolean>('actionAutoExecuteSafe', true),
+    actionMode: config.get<'dictation' | 'actions'>('actionMode', 'dictation'),
   };
 }
