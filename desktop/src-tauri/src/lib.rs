@@ -156,6 +156,16 @@ fn refine_via_copilot(text: String, language: String, model: String) -> Result<S
 }
 
 #[tauri::command]
+fn classify_via_copilot(text: String, language: String, model: String) -> Result<serde_json::Value, String> {
+    copilot::classify_text(&text, &language, &model)
+}
+
+#[tauri::command]
+fn execute_action_via_vscode(action: serde_json::Value) -> Result<serde_json::Value, String> {
+    copilot::execute_action(&action)
+}
+
+#[tauri::command]
 fn paste_text(app: AppHandle, text: String) -> Result<(), String> {
     // Copy text to system clipboard
     app.clipboard()
@@ -241,6 +251,8 @@ pub fn run() {
             interim_transcribe,
             transcribe,
             refine_via_copilot,
+            classify_via_copilot,
+            execute_action_via_vscode,
             paste_text,
             check_vscode_connection,
         ])
