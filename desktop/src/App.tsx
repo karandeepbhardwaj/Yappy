@@ -8,6 +8,45 @@ import logoImg from "./assets/logo.png";
 
 type Status = "idle" | "recording" | "processing";
 
+/** Local keyword matching for app actions — works without VS Code/LLM */
+function matchAppAction(text: string): any | null {
+  const lower = text.toLowerCase().trim();
+
+  // Chrome
+  if (/open\s+(google\s+)?chrome/i.test(lower) || /open\s+new\s+tab/i.test(lower)) {
+    return { kind: "app:chrome", command: "new_tab", description: "Open new Chrome tab", risk: "safe", app: "chrome", actionId: "new_tab", params: {} };
+  }
+  const urlMatch = lower.match(/(?:open|go\s+to|visit|navigate\s+to)\s+(https?:\/\/\S+|[\w.-]+\.(?:com|org|net|io|dev|ai)\S*)/i);
+  if (urlMatch) {
+    let url = urlMatch[1];
+    if (!url.startsWith("http")) url = "https://" + url;
+    return { kind: "app:chrome", command: "open_url", description: `Open ${url} in Chrome`, risk: "safe", app: "chrome", actionId: "open_url", params: { url } };
+  }
+  const searchMatch = lower.match(/(?:search|google|look\s+up)\s+(?:for\s+)?(.+)/i);
+  if (searchMatch && !searchMatch[1].match(/file|function|class|todo/i)) {
+    return { kind: "app:chrome", command: "search", description: `Search Google for "${searchMatch[1]}"`, risk: "safe", app: "chrome", actionId: "search", params: { query: searchMatch[1] } };
+  }
+
+  // Notes
+  if (/(?:create|make|new)\s+(?:a\s+)?note/i.test(lower)) {
+    const noteText = lower.replace(/(?:create|make|new)\s+(?:a\s+)?note\s*(?:saying|with|that\s+says?)?\s*/i, "").trim();
+    return { kind: "app:notes", command: "create_note", description: "Create a note", risk: "safe", app: "notes", actionId: "create_note", params: { text: noteText || text } };
+  }
+
+  // Outlook
+  if (/next\s+meeting/i.test(lower) || /upcoming\s+meeting/i.test(lower)) {
+    return { kind: "app:outlook", command: "next_meeting", description: "Get next meeting", risk: "safe", app: "outlook", actionId: "next_meeting", params: {} };
+  }
+  if (/latest\s+(?:email|message)/i.test(lower) || /new\s+(?:email|message)/i.test(lower)) {
+    return { kind: "app:outlook", command: "latest_message", description: "Get latest email", risk: "safe", app: "outlook", actionId: "latest_message", params: {} };
+  }
+  if (/reply\s+(?:to\s+)?(?:latest\s+)?(?:email|message)/i.test(lower)) {
+    return { kind: "app:outlook", command: "reply_message", description: "Reply to latest email", risk: "safe", app: "outlook", actionId: "reply_message", params: {} };
+  }
+
+  return null;
+}
+
 export default function App() {
   const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
   const [status, setStatus] = useState<Status>("idle");
@@ -85,27 +124,59 @@ export default function App() {
         const fullRaw = transcriptAccum.current + (finalSegment.trim() ? " " + finalSegment.trim() : "");
         setRawText(fullRaw.trim());
 
-        if (!vsConnected) {
-          // Not connected — prompt to open VS Code
+        if (mode === "actions" && fullRaw.trim()) {
+          // Actions mode: try LLM classification, fall back to local matching
+          let classified = false;
+
+          // Try local keyword matching first for app actions (works without VS Code)
+          const localMatch = matchAppAction(fullRaw.trim());
+          if (localMatch) {
+            setPendingAction(localMatch);
+            setRefinedText("");
+            classified = true;
+          }
+
+          // If no local match and VS Code is connected, use LLM classification
+          if (!classified && vsConnected) {
+            try {
+              const result = await invoke<any>("classify_via_copilot", { text: fullRaw.trim(), language, model });
+              if (result.intent === "action" && result.action) {
+                setPendingAction(result.action);
+                setRefinedText("");
+                classified = true;
+              } else if (result.intent === "app_action" && result.app && result.actionId) {
+                setPendingAction({
+                  kind: `app:${result.app}`,
+                  command: result.actionId,
+                  description: result.description || `${result.app}: ${result.actionId}`,
+                  risk: "safe",
+                  app: result.app,
+                  actionId: result.actionId,
+                  params: result.params || {},
+                });
+                setRefinedText("");
+                classified = true;
+              } else {
+                setRefinedText(result.refinedText || fullRaw.trim());
+                classified = true;
+              }
+            } catch {
+              // LLM failed — fall through
+            }
+          }
+
+          if (!classified) {
+            if (!vsConnected) {
+              setRefinedText(fullRaw.trim());
+              setShowVsCodePrompt(true);
+            } else {
+              setRefinedText(fullRaw.trim());
+            }
+          }
+        } else if (!vsConnected && fullRaw.trim()) {
+          // Dictation mode without VS Code
           setRefinedText(fullRaw.trim());
           setShowVsCodePrompt(true);
-          setStatus("idle");
-          return;
-        }
-
-        if (mode === "actions" && fullRaw.trim()) {
-          // Actions mode: classify intent
-          try {
-            const result = await invoke<any>("classify_via_copilot", { text: fullRaw.trim(), language, model });
-            if (result.intent === "action" && result.action) {
-              setPendingAction(result.action);
-              setRefinedText("");
-            } else {
-              setRefinedText(result.refinedText || fullRaw.trim());
-            }
-          } catch {
-            setRefinedText(fullRaw.trim());
-          }
         } else if (fullRaw.trim()) {
           // Dictation mode: refine
           let finalRefined = fullRaw.trim();
@@ -145,8 +216,15 @@ export default function App() {
     setPendingAction(null);
     setStatus("processing");
     try {
-      const result = await invoke<any>("execute_action_via_vscode", { action });
-      setActionResult({ success: result.success !== false, message: result.message || "Action executed" });
+      let result;
+      if (action.app && action.actionId) {
+        result = await invoke<any>("execute_app_action", {
+          app: action.app, actionId: action.actionId, params: action.params || {}
+        });
+      } else {
+        result = await invoke<any>("execute_action_via_vscode", { action });
+      }
+      setActionResult({ success: result.success !== false, message: result.message || "Done" });
     } catch (err: unknown) {
       setActionResult({ success: false, message: String(err) });
     }

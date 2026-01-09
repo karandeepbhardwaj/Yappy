@@ -58,12 +58,27 @@ Action kinds and examples:
 
 Risk: "safe" for read-only/reversible, "destructive" for modifications (push, delete, commit, rm)
 
-SCOPE: Only VS Code and terminal actions are supported. System actions like "open Chrome", "open Finder", "launch Spotify" are NOT supported — classify those as dictation with a note like "System actions are not yet supported."
+For app actions (external applications):
+{"intent":"app_action","app":"chrome|notes|outlook","actionId":"open_url|search|new_tab|create_note|write_text|next_meeting|latest_message|reply_message|write_message","params":{"key":"value"},"description":"human-readable description"}
 
-IMPORTANT: When ambiguous, prefer "dictation". Only classify as "action" when the user clearly intends a VS Code or terminal command.`;
+App-specific actions:
+- chrome: open_url (params: {url}), search (params: {query}), new_tab (no params)
+- notes: create_note (params: {text}), write_text (params: {text})
+- outlook: next_meeting (no params), latest_message (no params), reply_message (no params), write_message (params: {body, to?, subject?})
+
+Examples:
+"Open YouTube" → {"intent":"app_action","app":"chrome","actionId":"open_url","params":{"url":"https://youtube.com"},"description":"Open YouTube in Chrome"}
+"Search for React tutorials" → {"intent":"app_action","app":"chrome","actionId":"search","params":{"query":"React tutorials"},"description":"Search Google for React tutorials"}
+"Check my next meeting" → {"intent":"app_action","app":"outlook","actionId":"next_meeting","params":{},"description":"Get next calendar meeting"}
+"What's my latest email" → {"intent":"app_action","app":"outlook","actionId":"latest_message","params":{},"description":"Get latest email"}
+"Create a note saying buy groceries" → {"intent":"app_action","app":"notes","actionId":"create_note","params":{"text":"Buy groceries"},"description":"Create a note in Notes"}
+
+SCOPE: VS Code, terminal, and supported app actions only. System actions like "open Finder", "launch Spotify" are NOT supported — classify those as dictation with a note like "System actions are not yet supported."
+
+IMPORTANT: When ambiguous, prefer "dictation". Only classify as "action" or "app_action" when the user clearly intends a command.`;
 
 export interface ClassificationResult {
-  intent: 'dictation' | 'action';
+  intent: 'dictation' | 'action' | 'app_action';
   refinedText?: string;
   action?: {
     kind: 'terminal_run' | 'vscode_command' | 'search' | 'open_file' | 'git';
@@ -71,6 +86,10 @@ export interface ClassificationResult {
     description: string;
     risk: 'safe' | 'destructive';
   };
+  app?: string;
+  actionId?: string;
+  params?: Record<string, string>;
+  description?: string;
 }
 
 export class IntentClassifier {
@@ -148,6 +167,19 @@ export class IntentClassifier {
         ) {
           return { intent: 'action', action };
         }
+      }
+      if (
+        parsed.intent === 'app_action' &&
+        typeof parsed.app === 'string' &&
+        typeof parsed.actionId === 'string'
+      ) {
+        return {
+          intent: 'app_action',
+          app: parsed.app,
+          actionId: parsed.actionId,
+          params: parsed.params ?? {},
+          description: parsed.description,
+        };
       }
     } catch {
       // fall through to fallback
