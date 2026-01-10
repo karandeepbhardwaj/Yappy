@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="docs/icon.png" width="128" height="128" alt="SunYapper">
-</p>
-
 <h1 align="center">SunYapper</h1>
 
 <p align="center">
@@ -22,11 +18,7 @@
 ---
 
 <p align="center">
-  <img src="docs/idle.png" width="700" alt="SunYapper — Idle">
-</p>
-
-<p align="center">
-  <img src="docs/recording.png" width="700" alt="SunYapper — Live Transcription">
+  <img src="docs/sunyapper.png" width="700" alt="SunYapper — Idle">
 </p>
 
 ---
@@ -43,15 +35,16 @@ All speech-to-text runs **locally** via whisper.cpp. AI refinement uses GitHub C
 
 ## Download
 
-| Platform | Download | Size | What's included |
-|----------|----------|------|-----------------|
-| **macOS** (Apple Silicon) | [SunYapper.dmg](https://github.com/karandeepbhardwaj/SunYapper/releases/latest) | ~140 MB | Desktop app + sox + whisper + base model |
-| **Windows** (x64) | [SunYapper-setup.exe](https://github.com/karandeepbhardwaj/SunYapper/releases/latest) | ~150 MB | Desktop app + sox + whisper + base model |
-| **VS Code Extension** | [sunyapper.vsix](https://github.com/karandeepbhardwaj/SunYapper/releases/latest) | ~1.5 MB | Extension (model auto-downloads on first use) |
+| Platform                  | Download                                                                              | Size    | What's included                               |
+| ------------------------- | ------------------------------------------------------------------------------------- | ------- | --------------------------------------------- |
+| **macOS** (Apple Silicon) | [SunYapper.dmg](https://github.com/karandeepbhardwaj/SunYapper/releases/latest)       | ~140 MB | Desktop app + sox + whisper + base model      |
+| **Windows** (x64)         | [SunYapper-setup.exe](https://github.com/karandeepbhardwaj/SunYapper/releases/latest) | ~150 MB | Desktop app + sox + whisper + base model      |
+| **VS Code Extension**     | [sunyapper.vsix](https://github.com/karandeepbhardwaj/SunYapper/releases/latest)      | ~1.5 MB | Extension (model auto-downloads on first use) |
 
 ## Three Modes
 
 ### Dictation Mode
+
 Speak naturally → whisper transcribes → Copilot refines (removes filler words, fixes grammar, handles self-corrections).
 
 - Multi-language: select your language, whisper translates to English automatically
@@ -59,31 +52,33 @@ Speak naturally → whisper transcribes → Copilot refines (removes filler word
 - Self-correction: say "Friday 9 PM, actually 7 PM" → output is "Friday at 7 PM"
 
 ### VS Code Actions Mode
+
 Say commands → AI classifies intent → executes in VS Code.
 
-| Voice Command | What Happens |
-|--------------|--------------|
-| "Run tests" | Opens terminal, runs `npm test` |
-| "Open settings" | Opens VS Code settings |
-| "Search for handleClick" | Searches workspace |
-| "Open package.json" | Opens the file |
-| "Commit my changes" | Runs `git add -A && git commit` (with confirmation) |
-| "Format document" | Formats current file |
-| "Toggle terminal" | Shows/hides terminal panel |
+| Voice Command            | What Happens                                        |
+| ------------------------ | --------------------------------------------------- |
+| "Run tests"              | Opens terminal, runs `npm test`                     |
+| "Open settings"          | Opens VS Code settings                              |
+| "Search for handleClick" | Searches workspace                                  |
+| "Open package.json"      | Opens the file                                      |
+| "Commit my changes"      | Runs `git add -A && git commit` (with confirmation) |
+| "Format document"        | Formats current file                                |
+| "Toggle terminal"        | Shows/hides terminal panel                          |
 
 Safe commands execute immediately. Destructive commands (git push, delete) require confirmation.
 
 ### App Actions Mode (Plugin System)
+
 Say commands → local keyword matching or AI classification → controls external apps.
 
-| Voice Command | App | Action |
-|--------------|-----|--------|
-| "Open YouTube" | Chrome | Opens youtube.com |
-| "Search for React tutorials" | Chrome | Google search |
-| "Create a note saying buy groceries" | Notes/Notepad | Creates a note |
-| "What's my next meeting" | Outlook | Shows next calendar event |
-| "What's my latest email" | Outlook | Shows latest email |
-| "Reply to message" | Outlook | Opens reply window |
+| Voice Command                        | App           | Action                    |
+| ------------------------------------ | ------------- | ------------------------- |
+| "Open YouTube"                       | Chrome        | Opens youtube.com         |
+| "Search for React tutorials"         | Chrome        | Google search             |
+| "Create a note saying buy groceries" | Notes/Notepad | Creates a note            |
+| "What's my next meeting"             | Outlook       | Shows next calendar event |
+| "What's my latest email"             | Outlook       | Shows latest email        |
+| "Reply to message"                   | Outlook       | Opens reply window        |
 
 App actions work **without VS Code** for common commands (local keyword matching). Complex commands use AI classification via Copilot.
 
@@ -132,19 +127,20 @@ pub trait AppPlugin: Send + Sync {
 
 ## Settings
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `sunyapper.whisperModel` | `base` | Model: tiny, base, small |
-| `sunyapper.language` | `en` | Source language |
-| `sunyapper.actionMode` | `dictation` | Mode: dictation or actions |
-| `sunyapper.actionsEnabled` | `true` | Enable voice-triggered actions |
-| `sunyapper.actionAutoExecuteSafe` | `true` | Auto-execute safe actions |
-| `sunyapper.refinementEnabled` | `true` | Enable Copilot refinement |
-| `sunyapper.copilotModelFamily` | `gpt-4o` | Copilot model for AI |
+| Setting                           | Default     | Description                    |
+| --------------------------------- | ----------- | ------------------------------ |
+| `sunyapper.whisperModel`          | `base`      | Model: tiny, base, small       |
+| `sunyapper.language`              | `en`        | Source language                |
+| `sunyapper.actionMode`            | `dictation` | Mode: dictation or actions     |
+| `sunyapper.actionsEnabled`        | `true`      | Enable voice-triggered actions |
+| `sunyapper.actionAutoExecuteSafe` | `true`      | Auto-execute safe actions      |
+| `sunyapper.refinementEnabled`     | `true`      | Enable Copilot refinement      |
+| `sunyapper.copilotModelFamily`    | `gpt-4o`    | Copilot model for AI           |
 
 ## Build from Source
 
 ### Desktop App
+
 ```bash
 brew install sox whisper-cpp rust    # macOS prerequisites
 cd desktop
@@ -154,6 +150,7 @@ npx tauri build
 ```
 
 ### VS Code Extension
+
 ```bash
 npm install --ignore-scripts
 npx tsc -p ./tsconfig.json
