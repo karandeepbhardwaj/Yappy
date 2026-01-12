@@ -1,167 +1,93 @@
+import { ChildProcess, spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
-interface PortAudioStream {
-  start(): void;
-  quit(): void;
-  on(event: string, callback: (...args: unknown[]) => void): void;
-  read(): Buffer | null;
-}
-
-interface Naudiodon {
-  AudioIO(opts: {
-    inOptions: {
-      channelCount: number;
-      sampleFormat: number;
-      sampleRate: number;
-      deviceId: number;
-    };
-  }): PortAudioStream;
-  SampleFormat16Bit: number;
-  getDevices(): Array<{
-    id: number;
-    name: string;
-    maxInputChannels: number;
-    maxOutputChannels: number;
-    defaultSampleRate: number;
-  }>;
-}
-
 export class AudioRecorder {
-  private portAudio: Naudiodon | null = null;
-  private stream: PortAudioStream | null = null;
-  private chunks: Buffer[] = [];
-  private recording = false;
-  private sampleRate = 16000;
-
-  private getPortAudio(): Naudiodon {
-    if (!this.portAudio) {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        this.portAudio = require('naudiodon') as Naudiodon;
-      } catch (err) {
-        throw new Error(
-          'Failed to load naudiodon. Ensure native dependencies are installed: npm install'
-        );
-      }
-    }
-    return this.portAudio;
-  }
+  private process: ChildProcess | null = null;
+  private outputPath: string | null = null;
+  private _isRecording = false;
+  private _currentLevel = 0;
+  private errorMessage: string | null = null;
 
   isRecording(): boolean {
-    return this.recording;
+    return this._isRecording;
   }
 
-  getInputDevices(): Array<{ id: number; name: string }> {
-    const pa = this.getPortAudio();
-    return pa
-      .getDevices()
-      .filter((d) => d.maxInputChannels > 0)
-      .map((d) => ({ id: d.id, name: d.name }));
+  getCurrentLevel(): number {
+    return this._currentLevel;
   }
 
   start(): void {
-    if (this.recording) return;
+    if (this._isRecording) return;
 
-    const pa = this.getPortAudio();
-    this.chunks = [];
+    this.errorMessage = null;
+    this.outputPath = path.join(os.tmpdir(), `sunyapper_${Date.now()}.wav`);
 
-    this.stream = pa.AudioIO({
-      inOptions: {
-        channelCount: 1,
-        sampleFormat: pa.SampleFormat16Bit,
-        sampleRate: this.sampleRate,
-        deviceId: -1, // default device
-      },
+    // Use 'rec' (sox) on macOS/Linux, 'sox' on Windows
+    const isWin = process.platform === 'win32';
+    const cmd = isWin ? 'sox' : 'rec';
+
+    const args = isWin
+      ? ['-d', '-r', '16000', '-c', '1', '-b', '16', '-e', 'signed-integer', this.outputPath]
+      : ['-r', '16000', '-c', '1', '-b', '16', '-e', 'signed-integer', this.outputPath];
+
+    this.process = spawn(cmd, args, { stdio: ['pipe', 'pipe', 'pipe'] });
+
+    this.process.on('error', (err) => {
+      this._isRecording = false;
+      this.errorMessage = err.message.includes('ENOENT')
+        ? 'sox not found. Install it: brew install sox (macOS) or choco install sox (Windows)'
+        : err.message;
     });
 
-    this.stream.on('data', (buf: unknown) => {
-      if (Buffer.isBuffer(buf)) {
-        this.chunks.push(buf);
+    // Parse stderr for audio levels (sox outputs stats there)
+    this.process.stderr?.on('data', (data: Buffer) => {
+      const line = data.toString();
+      const match = line.match(/\|.*?(\d+)%/);
+      if (match) {
+        this._currentLevel = parseInt(match[1], 10) / 100;
+      } else if (this._isRecording) {
+        // Simulate level from stderr activity during recording
+        this._currentLevel = Math.random() * 0.3 + 0.1;
       }
     });
 
-    this.stream.on('error', (err: unknown) => {
-      console.error('AudioRecorder error:', err);
+    this._isRecording = true;
+  }
+
+  async stop(): Promise<string | null> {
+    if (!this._isRecording || !this.process) return null;
+
+    this._isRecording = false;
+    this._currentLevel = 0;
+
+    const proc = this.process;
+    const outPath = this.outputPath;
+    this.process = null;
+    this.outputPath = null;
+
+    // Wait for sox to finish writing the WAV file after SIGINT
+    await new Promise<void>((resolve) => {
+      proc.on('close', () => resolve());
+      proc.kill('SIGINT');
+      // Safety timeout in case close event doesn't fire
+      setTimeout(() => resolve(), 3000);
     });
 
-    this.stream.start();
-    this.recording = true;
-  }
-
-  stop(): string | null {
-    if (!this.recording || !this.stream) return null;
-
-    this.stream.quit();
-    this.recording = false;
-
-    if (this.chunks.length === 0) return null;
-
-    // Combine all PCM chunks
-    const pcmData = Buffer.concat(this.chunks);
-    this.chunks = [];
-
-    // Write as WAV file
-    const wavPath = path.join(os.tmpdir(), `sunyapper_${Date.now()}.wav`);
-    const wavBuffer = this.pcmToWav(pcmData, this.sampleRate, 1, 16);
-    fs.writeFileSync(wavPath, wavBuffer);
-
-    this.stream = null;
-    return wavPath;
-  }
-
-  /**
-   * Convert raw PCM data to WAV format
-   */
-  private pcmToWav(
-    pcmData: Buffer,
-    sampleRate: number,
-    channels: number,
-    bitsPerSample: number
-  ): Buffer {
-    const byteRate = (sampleRate * channels * bitsPerSample) / 8;
-    const blockAlign = (channels * bitsPerSample) / 8;
-    const dataSize = pcmData.length;
-    const headerSize = 44;
-
-    const buffer = Buffer.alloc(headerSize + dataSize);
-
-    // RIFF header
-    buffer.write('RIFF', 0);
-    buffer.writeUInt32LE(36 + dataSize, 4);
-    buffer.write('WAVE', 8);
-
-    // fmt sub-chunk
-    buffer.write('fmt ', 12);
-    buffer.writeUInt32LE(16, 16); // sub-chunk size
-    buffer.writeUInt16LE(1, 20); // PCM format
-    buffer.writeUInt16LE(channels, 22);
-    buffer.writeUInt32LE(sampleRate, 24);
-    buffer.writeUInt32LE(byteRate, 28);
-    buffer.writeUInt16LE(blockAlign, 32);
-    buffer.writeUInt16LE(bitsPerSample, 34);
-
-    // data sub-chunk
-    buffer.write('data', 36);
-    buffer.writeUInt32LE(dataSize, 40);
-    pcmData.copy(buffer, headerSize);
-
-    return buffer;
-  }
-
-  /**
-   * Get audio level (RMS) from recent buffer for waveform visualization
-   */
-  getCurrentLevel(): number {
-    if (this.chunks.length === 0) return 0;
-    const lastChunk = this.chunks[this.chunks.length - 1];
-    let sum = 0;
-    const samples = lastChunk.length / 2; // 16-bit = 2 bytes per sample
-    for (let i = 0; i < lastChunk.length; i += 2) {
-      const sample = lastChunk.readInt16LE(i) / 32768;
-      sum += sample * sample;
+    if (this.errorMessage) {
+      throw new Error(this.errorMessage);
     }
-    return Math.sqrt(sum / samples);
+
+    // Verify the file was written with actual audio data
+    if (outPath && fs.existsSync(outPath)) {
+      const stats = fs.statSync(outPath);
+      if (stats.size > 44) { // WAV header is 44 bytes
+        return outPath;
+      }
+      try { fs.unlinkSync(outPath); } catch { /* ignore */ }
+    }
+
+    return null;
   }
 }

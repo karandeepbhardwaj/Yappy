@@ -100,7 +100,6 @@
     "typescript": "^5.5.0"
   },
   "dependencies": {
-    "@kutalia/whisper-node-addon": "^1.1.0",
-    "naudiodon": "^2.3.6"
+    "@kutalia/whisper-node-addon": "^1.1.0"
   }
 }
