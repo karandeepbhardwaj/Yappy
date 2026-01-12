@@ -41,6 +41,45 @@ All speech-to-text runs **locally** via whisper.cpp. AI refinement uses GitHub C
 | **Windows** (x64)         | [SunYapper-setup.exe](https://github.com/karandeepbhardwaj/SunYapper/releases/latest) | ~150 MB | Desktop app + sox + whisper + base model      |
 | **VS Code Extension**     | [sunyapper.vsix](https://github.com/karandeepbhardwaj/SunYapper/releases/latest)      | ~1.5 MB | Extension (model auto-downloads on first use) |
 
+## Installation
+
+### Desktop App — macOS
+
+1. Download `SunYapper.dmg` from [Releases](https://github.com/karandeepbhardwaj/SunYapper/releases/latest)
+2. Open the DMG and drag SunYapper to Applications
+3. **Important — first launch**: macOS will show "SunYapper is damaged" because the app is not notarized. Fix it by running this in Terminal:
+   ```bash
+   xattr -cr /Applications/SunYapper.app
+   ```
+4. Open SunYapper from Applications
+5. Grant **Microphone** permission when prompted (System Settings → Privacy & Security → Microphone)
+
+### Desktop App — Windows
+
+1. Download `SunYapper-setup.exe` from [Releases](https://github.com/karandeepbhardwaj/SunYapper/releases/latest)
+2. Run the installer (Windows SmartScreen may warn — click "More info" → "Run anyway")
+3. Open SunYapper from the Start menu
+
+### VS Code Extension
+
+1. Download `sunyapper.vsix` from [Releases](https://github.com/karandeepbhardwaj/SunYapper/releases/latest)
+2. Install: `code --install-extension sunyapper-v0.3.0.vsix`
+3. Restart VS Code — the extension activates automatically
+4. The whisper model (~142MB) downloads automatically on first activation
+5. Press `Cmd+Shift+Y` (Mac) or `Ctrl+Shift+Y` (Win) to start dictating
+
+### Prerequisites
+
+| Component | Desktop App | VS Code Extension |
+|-----------|------------|-------------------|
+| macOS 13+ or Windows 10+ | Required | — |
+| VS Code 1.95+ | Optional (for Copilot refinement) | Required |
+| GitHub Copilot extension | Optional (for AI text refinement) | Required |
+| Internet | One-time model download (if not bundled) | One-time model download |
+| Microphone | Required | Required |
+
+**The desktop app works standalone** for recording + transcription. VS Code with Copilot is only needed for AI text refinement and VS Code action execution.
+
 ## Three Modes
 
 ### Dictation Mode
@@ -142,19 +181,37 @@ pub trait AppPlugin: Send + Sync {
 ### Desktop App
 
 ```bash
-brew install sox whisper-cpp rust    # macOS prerequisites
-cd desktop
+# macOS prerequisites
+brew install sox whisper-cpp rust node
+
+# Clone and build
+git clone https://github.com/karandeepbhardwaj/SunYapper.git
+cd SunYapper/desktop
 npm install
-node scripts/bundle-sidecars.cjs
-npx tauri build
+node scripts/bundle-sidecars.cjs    # bundles sox + whisper + model (~142MB download)
+npx tauri build                     # outputs .app + .dmg
+
+# Remove quarantine for local builds too
+xattr -cr src-tauri/target/release/bundle/macos/SunYapper.app
 ```
 
 ### VS Code Extension
 
 ```bash
-npm install --ignore-scripts
-npx tsc -p ./tsconfig.json
-npx @vscode/vsce package --no-dependencies
+cd SunYapper
+npm install
+npm run bundle                      # esbuild bundles everything into out/extension.js
+npx @vscode/vsce package --no-dependencies  # outputs .vsix
+```
+
+### Windows (build on Windows machine or CI)
+
+```bash
+# Prerequisites: Node.js 18+, Rust, Visual Studio Build Tools
+cd SunYapper/desktop
+npm install
+node scripts/bundle-sidecars.cjs    # downloads sox + whisper for Windows
+npx tauri build                     # outputs NSIS .exe installer
 ```
 
 ## Enterprise Use
