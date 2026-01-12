@@ -3,10 +3,30 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as https from 'https';
 
+// Multiple mirrors — tries each in order until one succeeds
+const MODEL_MIRRORS: Record<string, string[]> = {
+  tiny: [
+    'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin',
+    'https://cdn-lfs.hf.co/repos/39/06/3906b8c47b9e1dac279f48f1b6e09c6cfa985c7e0e75a750c7feaf664a9c0cf3/be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21?response-content-disposition=attachment%3B+filename*%3DUTF-8%27%27ggml-tiny.bin',
+    'https://ggml.ggerganov.com/ggml-model-whisper-tiny.bin',
+  ],
+  base: [
+    'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin',
+    'https://cdn-lfs.hf.co/repos/39/06/3906b8c47b9e1dac279f48f1b6e09c6cfa985c7e0e75a750c7feaf664a9c0cf3/60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe?response-content-disposition=attachment%3B+filename*%3DUTF-8%27%27ggml-base.bin',
+    'https://ggml.ggerganov.com/ggml-model-whisper-base.bin',
+  ],
+  small: [
+    'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin',
+    'https://cdn-lfs.hf.co/repos/39/06/3906b8c47b9e1dac279f48f1b6e09c6cfa985c7e0e75a750c7feaf664a9c0cf3/1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1571c230d4?response-content-disposition=attachment%3B+filename*%3DUTF-8%27%27ggml-small.bin',
+    'https://ggml.ggerganov.com/ggml-model-whisper-small.bin',
+  ],
+};
+
+// Primary URL for backward compat
 const MODEL_URLS: Record<string, string> = {
-  tiny: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin',
-  base: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin',
-  small: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin',
+  tiny: MODEL_MIRRORS.tiny[0],
+  base: MODEL_MIRRORS.base[0],
+  small: MODEL_MIRRORS.small[0],
 };
 
 const MODEL_SIZES: Record<string, string> = {
@@ -81,8 +101,8 @@ export class ModelManager {
   }
 
   async downloadModel(model: string): Promise<string> {
-    const url = MODEL_URLS[model];
-    if (!url) {
+    const mirrors = MODEL_MIRRORS[model];
+    if (!mirrors || mirrors.length === 0) {
       throw new Error(`Unknown model: ${model}`);
     }
 
@@ -91,10 +111,28 @@ export class ModelManager {
       return destPath;
     }
 
+    // Try each mirror in order
+    const errors: string[] = [];
+    for (let i = 0; i < mirrors.length; i++) {
+      const mirrorUrl = mirrors[i];
+      const mirrorLabel = i === 0 ? '' : ` (mirror ${i + 1}/${mirrors.length})`;
+      try {
+        return await this.downloadFromUrl(model, mirrorUrl, destPath, mirrorLabel);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        errors.push(`Mirror ${i + 1}: ${msg}`);
+        // Continue to next mirror
+      }
+    }
+
+    throw new Error(`All download mirrors failed for ${model} model:\n${errors.join('\n')}`);
+  }
+
+  private async downloadFromUrl(model: string, url: string, destPath: string, mirrorLabel: string): Promise<string> {
     return vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: `SunYapper: Downloading ${model} model (${MODEL_SIZES[model]})...`,
+        title: `SunYapper: Downloading ${model} model (${MODEL_SIZES[model]})${mirrorLabel}...`,
         cancellable: true,
       },
       async (progress, token) => {
