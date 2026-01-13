@@ -2,12 +2,18 @@ import { ChildProcess, spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { getBinaryPath } from '../binaries';
 
 export class AudioRecorder {
   private process: ChildProcess | null = null;
   private outputPath: string | null = null;
   private _isRecording = false;
   private errorMessage: string | null = null;
+  private extensionPath: string;
+
+  constructor(extensionPath: string) {
+    this.extensionPath = extensionPath;
+  }
 
   isRecording(): boolean {
     return this._isRecording;
@@ -20,7 +26,8 @@ export class AudioRecorder {
     this.outputPath = path.join(os.tmpdir(), `sunyapper_${Date.now()}.wav`);
 
     const isWin = process.platform === 'win32';
-    const cmd = isWin ? 'sox' : 'rec';
+    const cmd = getBinaryPath(isWin ? 'sox' : 'rec', this.extensionPath);
+
     const args = isWin
       ? ['-d', '-r', '16000', '-c', '1', '-b', '16', '-e', 'signed-integer', this.outputPath]
       : ['-r', '16000', '-c', '1', '-b', '16', '-e', 'signed-integer', this.outputPath];
@@ -29,9 +36,7 @@ export class AudioRecorder {
 
     this.process.on('error', (err) => {
       this._isRecording = false;
-      this.errorMessage = err.message.includes('ENOENT')
-        ? 'sox not found. Install it: brew install sox (macOS) or choco install sox (Windows)'
-        : err.message;
+      this.errorMessage = err.message;
     });
 
     this._isRecording = true;
@@ -67,10 +72,8 @@ export class AudioRecorder {
     return null;
   }
 
-  /** Read a WAV file and return PCM Int16 samples as a number array */
   static readWavAsInt16(wavPath: string): number[] {
     const buf = fs.readFileSync(wavPath);
-    // Skip 44-byte WAV header, read Int16LE samples
     const pcm: number[] = [];
     for (let i = 44; i < buf.length - 1; i += 2) {
       pcm.push(buf.readInt16LE(i));

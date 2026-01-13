@@ -10,9 +10,10 @@ import { getConfig } from './config/Settings';
 let statusBarItem: vscode.StatusBarItem;
 
 export function activate(context: vscode.ExtensionContext) {
-  const audioRecorder = new AudioRecorder();
+  const extPath = context.extensionUri.fsPath;
+  const audioRecorder = new AudioRecorder(extPath);
   const modelManager = new ModelManager(context.globalStorageUri.fsPath);
-  const whisperEngine = new WhisperEngine(modelManager);
+  const whisperEngine = new WhisperEngine(modelManager, extPath);
   const copilotRefiner = new CopilotRefiner();
   const textInserter = new TextInserter();
 

@@ -89,12 +89,13 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run download-wasm && npm run compile",
+    "vscode:prepublish": "npm run download-binaries && npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "package": "vsce package",
-    "download-wasm": "node scripts/download-wasm.js",
-    "postinstall": "node scripts/download-wasm.js"
+    "package:all": "vsce package --target darwin-arm64 && vsce package --target darwin-x64 && vsce package --target win32-x64 && vsce package --target linux-x64",
+    "download-binaries": "node scripts/download-binaries.js",
+    "postinstall": "node scripts/download-binaries.js"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
