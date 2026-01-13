@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import { AudioRecorder } from './AudioRecorder';
+import { WhisperEngine } from '../stt/WhisperEngine';
 import { ModelManager } from '../stt/ModelManager';
 import { CopilotRefiner } from '../llm/CopilotRefiner';
 import { TextInserter } from '../output/TextInserter';
@@ -13,6 +14,7 @@ export class AudioPanel {
   private readonly panel: vscode.WebviewPanel;
   private readonly extensionUri: vscode.Uri;
   private readonly audioRecorder: AudioRecorder;
+  private readonly whisperEngine: WhisperEngine;
   private readonly modelManager: ModelManager;
   private readonly copilotRefiner: CopilotRefiner;
   private readonly textInserter: TextInserter;
@@ -22,6 +24,7 @@ export class AudioPanel {
   public static createOrShow(
     extensionUri: vscode.Uri,
     audioRecorder: AudioRecorder,
+    whisperEngine: WhisperEngine,
     modelManager: ModelManager,
     copilotRefiner: CopilotRefiner,
     textInserter: TextInserter
@@ -40,15 +43,12 @@ export class AudioPanel {
       {
         enableScripts: true,
         retainContextWhenHidden: true,
-        localResourceRoots: [
-          vscode.Uri.joinPath(extensionUri, 'media'),
-          vscode.Uri.file(modelManager.modelsDir),
-        ],
+        localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'media')],
       }
     );
 
     AudioPanel.currentPanel = new AudioPanel(
-      panel, extensionUri, audioRecorder, modelManager, copilotRefiner, textInserter
+      panel, extensionUri, audioRecorder, whisperEngine, modelManager, copilotRefiner, textInserter
     );
     return AudioPanel.currentPanel;
   }
@@ -57,6 +57,7 @@ export class AudioPanel {
     panel: vscode.WebviewPanel,
     extensionUri: vscode.Uri,
     audioRecorder: AudioRecorder,
+    whisperEngine: WhisperEngine,
     modelManager: ModelManager,
     copilotRefiner: CopilotRefiner,
     textInserter: TextInserter
@@ -64,6 +65,7 @@ export class AudioPanel {
     this.panel = panel;
     this.extensionUri = extensionUri;
     this.audioRecorder = audioRecorder;
+    this.whisperEngine = whisperEngine;
     this.modelManager = modelManager;
     this.copilotRefiner = copilotRefiner;
     this.textInserter = textInserter;
@@ -90,7 +92,6 @@ export class AudioPanel {
       this.audioRecorder.start();
       this.panel.webview.postMessage({ type: 'setState', state: 'recording' });
 
-      // Send fake audio levels for waveform visualization
       this.timerInterval = setInterval(() => {
         if (this.audioRecorder.isRecording()) {
           this.panel.webview.postMessage({
@@ -129,10 +130,56 @@ export class AudioPanel {
       return;
     }
 
+    const config = getConfig();
+
     try {
-      // Read WAV as PCM Int16 and send to webview for WASM transcription
-      const pcm16 = AudioRecorder.readWavAsInt16(wavPath);
-      await this.sendForTranscription(pcm16);
+      // Check model is downloaded
+      if (!this.modelManager.isModelDownloaded(config.whisperModel)) {
+        const action = await vscode.window.showWarningMessage(
+          `SunYapper: Model "${config.whisperModel}" not downloaded.`, 'Download Now'
+        );
+        if (action === 'Download Now') {
+          await this.modelManager.downloadModel(config.whisperModel);
+        } else {
+          this.panel.webview.postMessage({ type: 'setState', state: 'idle' });
+          return;
+        }
+      }
+
+      // Transcribe with whisper-cli
+      const rawText = await this.whisperEngine.transcribe(wavPath, config.whisperModel, config.language);
+
+      if (!rawText || rawText.trim().length === 0) {
+        this.panel.webview.postMessage({
+          type: 'error',
+          message: 'No speech detected. Try speaking louder or closer to the mic.',
+        });
+        return;
+      }
+
+      // Show raw transcription
+      this.panel.webview.postMessage({
+        type: 'transcription',
+        text: rawText,
+        refining: config.refinementEnabled,
+      });
+
+      // Refine with Copilot
+      if (config.refinementEnabled) {
+        try {
+          const refined = await this.copilotRefiner.refine(rawText);
+          this.panel.webview.postMessage({ type: 'refined', text: refined });
+        } catch (err: unknown) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          this.panel.webview.postMessage({ type: 'refined', text: rawText });
+          vscode.window.showWarningMessage(
+            `SunYapper: Copilot refinement failed (${errMsg}). Using raw transcription.`
+          );
+        }
+      }
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      this.panel.webview.postMessage({ type: 'error', message: errMsg });
     } finally {
       if (wavPath && fs.existsSync(wavPath)) {
         try { fs.unlinkSync(wavPath); } catch { /* ignore */ }
@@ -140,50 +187,7 @@ export class AudioPanel {
     }
   }
 
-  private async sendForTranscription(pcm16: number[]) {
-    const config = getConfig();
-    const model = config.whisperModel;
-
-    if (!this.modelManager.isModelDownloaded(model)) {
-      const action = await vscode.window.showWarningMessage(
-        `SunYapper: Model "${model}" not downloaded.`,
-        'Download Now'
-      );
-      if (action === 'Download Now') {
-        try {
-          await this.modelManager.downloadModel(model);
-        } catch (err: unknown) {
-          const msg = err instanceof Error ? err.message : String(err);
-          this.panel.webview.postMessage({ type: 'error', message: msg });
-          return;
-        }
-      } else {
-        this.panel.webview.postMessage({ type: 'setState', state: 'idle' });
-        return;
-      }
-    }
-
-    const modelPath = this.modelManager.getModelPath(model);
-    const modelWebviewUri = this.panel.webview.asWebviewUri(vscode.Uri.file(modelPath));
-    const wasmJsUri = this.panel.webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, 'media', 'wasm', 'main.js')
-    );
-
-    this.panel.webview.postMessage({
-      type: 'transcribeAudio',
-      pcm16,
-      sampleRate: 16000,
-      language: config.language,
-      modelUrl: modelWebviewUri.toString(),
-      wasmJsUrl: wasmJsUri.toString(),
-    });
-  }
-
-  private async handleMessage(msg: {
-    type: string;
-    text?: string;
-    message?: string;
-  }) {
+  private async handleMessage(msg: { type: string; text?: string; message?: string }) {
     switch (msg.type) {
       case 'record':
         this.startRecording();
@@ -191,46 +195,12 @@ export class AudioPanel {
       case 'stop':
         await this.stopAndProcess();
         break;
-      case 'transcription':
-        await this.handleTranscription(msg.text!);
-        break;
       case 'insertText':
         await this.textInserter.insert(msg.text!);
         break;
       case 'error':
         vscode.window.showErrorMessage(`SunYapper: ${msg.message}`);
         break;
-    }
-  }
-
-  private async handleTranscription(rawText: string) {
-    if (!rawText || rawText.trim().length === 0) {
-      this.panel.webview.postMessage({
-        type: 'error',
-        message: 'No speech detected. Try speaking louder or closer to the mic.',
-      });
-      return;
-    }
-
-    const config = getConfig();
-
-    this.panel.webview.postMessage({
-      type: 'transcription',
-      text: rawText,
-      refining: config.refinementEnabled,
-    });
-
-    if (config.refinementEnabled) {
-      try {
-        const refined = await this.copilotRefiner.refine(rawText);
-        this.panel.webview.postMessage({ type: 'refined', text: refined });
-      } catch (err: unknown) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        this.panel.webview.postMessage({ type: 'refined', text: rawText });
-        vscode.window.showWarningMessage(
-          `SunYapper: Copilot refinement failed (${errMsg}). Using raw transcription.`
-        );
-      }
     }
   }
 
@@ -245,19 +215,12 @@ export class AudioPanel {
 
     const nonce = getNonce();
 
-    const csp = [
-      `default-src 'none'`,
-      `style-src ${webview.cspSource}`,
-      `script-src 'nonce-${nonce}' 'wasm-unsafe-eval' ${webview.cspSource}`,
-      `connect-src ${webview.cspSource}`,
-    ].join('; ');
-
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="${csp}">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
   <link rel="stylesheet" href="${cssUri}">
   <title>SunYapper</title>
 </head>
