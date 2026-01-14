@@ -6,6 +6,13 @@
     "global-shortcut:default",
     "clipboard-manager:default",
     "shell:default",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        { "name": "whisper-cli", "sidecar": true },
+        { "name": "rec", "sidecar": true }
+      ]
+    },
     "core:default",
     "core:event:default"
   ]
