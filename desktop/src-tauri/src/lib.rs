@@ -104,35 +104,16 @@ fn transcribe(app: AppHandle, audio_path: String, language: String) -> Result<St
 }
 
 #[tauri::command]
-fn refine_via_copilot(text: String) -> Result<String, String> {
-    copilot::refine_text(&text)
+fn refine_via_copilot(text: String, language: String) -> Result<String, String> {
+    copilot::refine_text(&text, &language)
 }
 
 #[tauri::command]
 fn paste_text(app: AppHandle, text: String) -> Result<(), String> {
+    // Copy text to system clipboard
     app.clipboard()
         .write_text(&text)
         .map_err(|e| format!("Clipboard error: {e}"))?;
-
-    std::thread::sleep(std::time::Duration::from_millis(50));
-
-    use enigo::{Enigo, Key, Keyboard, Settings};
-    let mut enigo = Enigo::new(&Settings::default()).map_err(|e| format!("Enigo error: {e}"))?;
-
-    #[cfg(target_os = "macos")]
-    {
-        enigo.key(Key::Meta, enigo::Direction::Press).ok();
-        enigo.key(Key::Unicode('v'), enigo::Direction::Click).ok();
-        enigo.key(Key::Meta, enigo::Direction::Release).ok();
-    }
-
-    #[cfg(not(target_os = "macos"))]
-    {
-        enigo.key(Key::Control, enigo::Direction::Press).ok();
-        enigo.key(Key::Unicode('v'), enigo::Direction::Click).ok();
-        enigo.key(Key::Control, enigo::Direction::Release).ok();
-    }
-
     Ok(())
 }
 
