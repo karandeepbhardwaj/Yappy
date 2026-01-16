@@ -19,8 +19,23 @@ export class WhisperEngine {
 
     const cmd = getBinaryPath('whisper-cli', this.extensionPath);
 
+    // Build args: force language detection + translate non-English to English
+    const args = ['-m', modelPath, '-np', '-nt'];
+
+    if (language && language !== 'auto') {
+      args.push('-l', language);
+    }
+
+    // For non-English: use whisper's built-in translate-to-English mode
+    // This is far more accurate than LLM translation after the fact
+    if (language !== 'en') {
+      args.push('-tr');
+    }
+
+    args.push('-f', audioFilePath);
+
     return new Promise<string>((resolve, reject) => {
-      execFile(cmd, ['-m', modelPath, '-l', language, '-np', '-nt', '-f', audioFilePath],
+      execFile(cmd, args,
         { timeout: 120000 },
         (error, stdout, stderr) => {
           if (error) {

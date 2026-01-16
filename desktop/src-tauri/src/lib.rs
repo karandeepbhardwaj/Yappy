@@ -67,16 +67,30 @@ fn transcribe(app: AppHandle, audio_path: String, language: String) -> Result<St
         .unwrap_or_default();
 
     let mut cmd = StdCommand::new(&whisper_bin);
-    cmd.args([
-        "-m",
-        model_path.to_str().unwrap(),
-        "-l",
-        &language,
-        "-np",
-        "-nt",
-        "-f",
-        &audio_path,
-    ]);
+
+    // Base args
+    let mut args = vec![
+        "-m".to_string(),
+        model_path.to_str().unwrap().to_string(),
+        "-np".to_string(),
+        "-nt".to_string(),
+    ];
+
+    // Force language if not auto
+    if !language.is_empty() && language != "auto" {
+        args.push("-l".to_string());
+        args.push(language.clone());
+    }
+
+    // Translate non-English to English using whisper's built-in translation
+    if language != "en" {
+        args.push("-tr".to_string());
+    }
+
+    args.push("-f".to_string());
+    args.push(audio_path.clone());
+
+    cmd.args(&args);
 
     // Set library path — check both possible locations
     let lib_path = if resource_lib.exists() {
