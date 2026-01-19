@@ -1,5 +1,5 @@
 use std::process::{Child, Command};
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 
 pub struct RecordingHandle {
     child: Child,
@@ -43,8 +43,6 @@ pub fn start(app: &AppHandle) -> Result<RecordingHandle, Box<dyn std::error::Err
         .stderr(std::process::Stdio::null())
         .spawn()
         .map_err(|e| format!("Failed to start rec: {e}"))?;
-
-    let _ = app.emit("recording-started", ());
 
     Ok(RecordingHandle {
         child,

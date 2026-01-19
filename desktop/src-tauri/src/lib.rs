@@ -40,6 +40,92 @@ fn cleanup_recording_files() {
     recording::cleanup_segments();
 }
 
+/// Core whisper runner. Resolves the model, binary, and library path, then
+/// runs whisper-cli and returns the trimmed transcript.
+///
+/// `model_override` selects a specific model name (e.g. "tiny"); when `None`
+/// only `ggml-base.bin` is tried (the default for final transcription).
+fn run_whisper(
+    app: &AppHandle,
+    audio_path: &str,
+    language: &str,
+    model_override: Option<&str>,
+) -> Result<String, String> {
+    let resource_dir = app
+        .path()
+        .resource_dir()
+        .map_err(|e| format!("No resource dir: {e}"))?;
+
+    // Resolve model path
+    let model_path = if let Some(name) = model_override {
+        // Try tiny/base by name with both bundle layouts
+        let primary = resource_dir.join("resources").join("models").join(format!("ggml-{name}.bin"));
+        let alt = resource_dir.join("models").join(format!("ggml-{name}.bin"));
+        // Also allow falling back from tiny → base when override is "tiny"
+        let base_primary = resource_dir.join("resources").join("models").join("ggml-base.bin");
+        let base_alt = resource_dir.join("models").join("ggml-base.bin");
+        if primary.exists() { primary }
+        else if alt.exists() { alt }
+        else if base_primary.exists() { base_primary }
+        else if base_alt.exists() { base_alt }
+        else { return Err("No model found".into()); }
+    } else {
+        // Default: base model only (final transcription)
+        let primary = resource_dir.join("resources").join("models").join("ggml-base.bin");
+        let alt = resource_dir.join("models").join("ggml-base.bin");
+        if primary.exists() { primary }
+        else if alt.exists() { alt }
+        else { return Err(format!("Model not found. Checked:\n  {}\n  {}", primary.display(), alt.display())); }
+    };
+
+    let whisper_bin = resolve_sidecar(app, "whisper-cli")?;
+
+    // Dylibs are in Resources/binaries/lib/ (or Resources/resources/binaries/lib/) in the .app bundle
+    let resource_lib = if resource_dir.join("binaries").join("lib").exists() {
+        resource_dir.join("binaries").join("lib")
+    } else {
+        resource_dir.join("resources").join("binaries").join("lib")
+    };
+    let exe_lib = whisper_bin.parent().map(|p| p.join("lib")).unwrap_or_default();
+    let lib_path = if resource_lib.exists() { resource_lib } else { exe_lib };
+
+    let mut cmd = StdCommand::new(&whisper_bin);
+    let mut args = vec![
+        "-m".to_string(),
+        model_path.to_string_lossy().to_string(),
+        "-np".to_string(),
+        "-nt".to_string(),
+    ];
+
+    if !language.is_empty() && language != "auto" {
+        args.push("-l".to_string());
+        args.push(language.to_string());
+    }
+    if language != "en" {
+        args.push("-tr".to_string());
+    }
+    args.push("-f".to_string());
+    args.push(audio_path.to_string());
+
+    cmd.args(&args);
+
+    if lib_path.exists() {
+        #[cfg(target_os = "macos")]
+        cmd.env("DYLD_LIBRARY_PATH", &lib_path);
+        #[cfg(target_os = "linux")]
+        cmd.env("LD_LIBRARY_PATH", &lib_path);
+    }
+
+    let output = cmd.output().map_err(|e| format!("Failed to run whisper-cli: {e}"))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Whisper failed: {stderr}"));
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
 /// Rotate current recording segment and transcribe it.
 /// Returns the interim transcription text for the completed segment.
 #[tauri::command]
@@ -50,151 +136,18 @@ fn interim_transcribe(state: State<AppState>, app: AppHandle, language: String) 
     // Rotate: stop current segment, start new one, get completed WAV path
     let segment_path = recording::rotate_segment(handle).map_err(|e| e.to_string())?;
 
-    // Transcribe the completed segment (using tiny model for speed)
-    let resource_dir = app
-        .path()
-        .resource_dir()
-        .map_err(|e| format!("No resource dir: {e}"))?;
+    // Transcribe using tiny model for speed, falling back to base
+    let result = run_whisper(&app, &segment_path, &language, Some("tiny"));
 
-    // Try tiny model first for speed, fall back to base
-    let model_path = {
-        let tiny = resource_dir.join("resources").join("models").join("ggml-tiny.bin");
-        let base = resource_dir.join("resources").join("models").join("ggml-base.bin");
-        let tiny_alt = resource_dir.join("models").join("ggml-tiny.bin");
-        let base_alt = resource_dir.join("models").join("ggml-base.bin");
-        if tiny.exists() { tiny }
-        else if tiny_alt.exists() { tiny_alt }
-        else if base.exists() { base }
-        else if base_alt.exists() { base_alt }
-        else { return Err("No model found".into()); }
-    };
-
-    let whisper_bin = resolve_sidecar(&app, "whisper-cli")?;
-
-    let resource_lib = if resource_dir.join("binaries").join("lib").exists() {
-        resource_dir.join("binaries").join("lib")
-    } else {
-        resource_dir.join("resources").join("binaries").join("lib")
-    };
-    let exe_lib = whisper_bin.parent().map(|p| p.join("lib")).unwrap_or_default();
-    let lib_path = if resource_lib.exists() { resource_lib } else { exe_lib };
-
-    let mut cmd = std::process::Command::new(&whisper_bin);
-    let mut args = vec!["-m".to_string(), model_path.to_str().unwrap().to_string(), "-np".to_string(), "-nt".to_string()];
-    if !language.is_empty() && language != "auto" {
-        args.push("-l".to_string());
-        args.push(language.clone());
-    }
-    if language != "en" {
-        args.push("-tr".to_string());
-    }
-    args.push("-f".to_string());
-    args.push(segment_path.clone());
-    cmd.args(&args);
-
-    if lib_path.exists() {
-        #[cfg(target_os = "macos")]
-        cmd.env("DYLD_LIBRARY_PATH", &lib_path);
-        #[cfg(target_os = "linux")]
-        cmd.env("LD_LIBRARY_PATH", &lib_path);
-    }
-
-    let output = cmd.output().map_err(|e| format!("Whisper failed: {e}"))?;
-
-    // Clean up segment file
+    // Always clean up the segment file
     let _ = std::fs::remove_file(&segment_path);
 
-    if !output.status.success() {
-        return Err("Interim transcription failed".into());
-    }
-
-    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    result
 }
 
 #[tauri::command]
 fn transcribe(app: AppHandle, audio_path: String, language: String) -> Result<String, String> {
-    let resource_dir = app
-        .path()
-        .resource_dir()
-        .map_err(|e| format!("No resource dir: {e}"))?;
-
-    // Tauri nests resources under resources/ subdirectory in the bundle
-    let model_path = resource_dir.join("resources").join("models").join("ggml-base.bin");
-    let model_path = if model_path.exists() {
-        model_path
-    } else {
-        // Fallback: direct path (dev mode)
-        let alt = resource_dir.join("models").join("ggml-base.bin");
-        if alt.exists() {
-            alt
-        } else {
-            return Err(format!("Model not found. Checked:\n  {}\n  {}", model_path.display(), alt.display()));
-        }
-    };
-
-    let whisper_bin = resolve_sidecar(&app, "whisper-cli")?;
-
-    // Dylibs are in Resources/binaries/lib/ (or Resources/resources/binaries/lib/) in the .app bundle
-    let resource_lib = if resource_dir.join("binaries").join("lib").exists() {
-        resource_dir.join("binaries").join("lib")
-    } else {
-        resource_dir.join("resources").join("binaries").join("lib")    // Tauri nesting
-    };
-    // Also check next to the binary
-    let exe_lib = whisper_bin
-        .parent()
-        .map(|p| p.join("lib"))
-        .unwrap_or_default();
-
-    let mut cmd = StdCommand::new(&whisper_bin);
-
-    // Base args
-    let mut args = vec![
-        "-m".to_string(),
-        model_path.to_str().unwrap().to_string(),
-        "-np".to_string(),
-        "-nt".to_string(),
-    ];
-
-    // Force language if not auto
-    if !language.is_empty() && language != "auto" {
-        args.push("-l".to_string());
-        args.push(language.clone());
-    }
-
-    // Translate non-English to English using whisper's built-in translation
-    if language != "en" {
-        args.push("-tr".to_string());
-    }
-
-    args.push("-f".to_string());
-    args.push(audio_path.clone());
-
-    cmd.args(&args);
-
-    // Set library path — check both possible locations
-    let lib_path = if resource_lib.exists() {
-        resource_lib
-    } else {
-        exe_lib
-    };
-    if lib_path.exists() {
-        #[cfg(target_os = "macos")]
-        cmd.env("DYLD_LIBRARY_PATH", &lib_path);
-        #[cfg(target_os = "linux")]
-        cmd.env("LD_LIBRARY_PATH", &lib_path);
-    }
-
-    let output = cmd
-        .output()
-        .map_err(|e| format!("Failed to run whisper-cli: {e}"))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Whisper failed: {stderr}"));
-    }
-
-    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    run_whisper(&app, &audio_path, &language, None)
 }
 
 #[tauri::command]

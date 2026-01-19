@@ -13,8 +13,8 @@ export class WhisperEngine {
 
   async transcribe(audioFilePath: string, model: string, language: string): Promise<string> {
     const modelPath = this.modelManager.getModelPath(model);
-    if (!this.modelManager.isModelDownloaded(model)) {
-      throw new Error(`Model "${model}" not downloaded. Run "SunYapper: Download Whisper Model" first.`);
+    if (!this.modelManager.isModelAvailable(model)) {
+      throw new Error(`Model "${model}" not available. Run "SunYapper: Download Whisper Model" first.`);
     }
 
     const cmd = getBinaryPath('whisper-cli', this.extensionPath);
