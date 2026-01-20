@@ -52,6 +52,15 @@ export class ActionExecutor {
         }
 
         case 'vscode_command': {
+          // Validate the command exists before executing
+          const allCommands = await vscode.commands.getCommands(true);
+          if (!allCommands.includes(action.command)) {
+            // Command doesn't exist — try opening in terminal as fallback
+            const terminal = getTerminal();
+            terminal.show();
+            terminal.sendText(action.command);
+            return { success: true, message: `Command ID not found in VS Code. Ran in terminal: ${action.command}` };
+          }
           await vscode.commands.executeCommand(action.command);
           return { success: true, message: `Executed: ${action.description}` };
         }
