@@ -16,10 +16,14 @@ export default function App() {
   const [language, setLanguage] = useState("en");
   const [model, setModel] = useState("gpt-4o");
   const [copied, setCopied] = useState(false);
+  const [mode, setMode] = useState<"dictation" | "actions">("dictation");
+  const [pendingAction, setPendingAction] = useState<any>(null);
+  const [actionResult, setActionResult] = useState<{ success: boolean; message: string } | null>(null);
   const [transcriptHistory, setTranscriptHistory] = useState<{ raw: string; refined: string }[]>([]);
   const [isDarkMode, setIsDarkMode] = useState(
     window.matchMedia("(prefers-color-scheme: dark)").matches
   );
+  const [showVsCodePrompt, setShowVsCodePrompt] = useState(false);
 
   // Apply dark mode class to document root
   useEffect(() => {
@@ -73,33 +77,50 @@ export default function App() {
     if (status === "recording") {
       stopInterimLoop();
       setStatus("processing");
+      setPendingAction(null);
+      setActionResult(null);
       try {
-        // Stop final segment and transcribe it
         const wavPath = await invoke<string>("stop_recording");
         const finalSegment = await invoke<string>("transcribe", { audioPath: wavPath, language });
-
-        // Combine accumulated interim text + final segment
         const fullRaw = transcriptAccum.current + (finalSegment.trim() ? " " + finalSegment.trim() : "");
         setRawText(fullRaw.trim());
 
-        // Refine the full text
-        let finalRefined = fullRaw.trim();
-        if (vsConnected && fullRaw.trim()) {
+        if (!vsConnected) {
+          // Not connected — prompt to open VS Code
+          setRefinedText(fullRaw.trim());
+          setShowVsCodePrompt(true);
+          setStatus("idle");
+          return;
+        }
+
+        if (mode === "actions" && fullRaw.trim()) {
+          // Actions mode: classify intent
+          try {
+            const result = await invoke<any>("classify_via_copilot", { text: fullRaw.trim(), language, model });
+            if (result.intent === "action" && result.action) {
+              setPendingAction(result.action);
+              setRefinedText("");
+            } else {
+              setRefinedText(result.refinedText || fullRaw.trim());
+            }
+          } catch {
+            setRefinedText(fullRaw.trim());
+          }
+        } else if (fullRaw.trim()) {
+          // Dictation mode: refine
+          let finalRefined = fullRaw.trim();
           try {
             finalRefined = await invoke<string>("refine_via_copilot", { text: fullRaw.trim(), language, model });
-          } catch {
-            // keep finalRefined as raw
-          }
-        }
-        setRefinedText(finalRefined);
+          } catch { /* keep raw */ }
+          setRefinedText(finalRefined);
 
-        if (fullRaw.trim()) {
-          setTranscriptHistory((prev) => [{ raw: fullRaw.trim(), refined: finalRefined }, ...prev].slice(0, 10));
+          if (fullRaw.trim()) {
+            setTranscriptHistory((prev) => [{ raw: fullRaw.trim(), refined: finalRefined }, ...prev].slice(0, 10));
+          }
         }
       } catch (err: unknown) {
         setRawText(`Error: ${String(err)}`);
       } finally {
-        // Clean up temp WAV files after everything is done
         invoke("cleanup_recording_files").catch(() => {});
       }
       setStatus("idle");
@@ -107,6 +128,9 @@ export default function App() {
       setRawText("");
       setRefinedText("");
       setCopied(false);
+      setPendingAction(null);
+      setActionResult(null);
+      setShowVsCodePrompt(false);
       try {
         await invoke("start_recording");
         setStatus("recording");
@@ -115,7 +139,27 @@ export default function App() {
         setRawText(`Error: ${String(err)}`);
       }
     }
-  }, [status, language, vsConnected, model]);
+  }, [status, language, vsConnected, model, mode]);
+
+  const executeAction = async (action: any) => {
+    setPendingAction(null);
+    setStatus("processing");
+    try {
+      const result = await invoke<any>("execute_action_via_vscode", { action });
+      setActionResult({ success: result.success !== false, message: result.message || "Action executed" });
+    } catch (err: unknown) {
+      setActionResult({ success: false, message: String(err) });
+    }
+    setStatus("idle");
+  };
+
+  const retryVsCodeConnection = () => {
+    setShowVsCodePrompt(false);
+    // Check connection again after a brief delay
+    setTimeout(() => {
+      invoke<boolean>("check_vscode_connection").then(setVsConnected).catch(() => setVsConnected(false));
+    }, 2000);
+  };
 
   const copyToClipboard = async () => {
     try {
@@ -250,6 +294,32 @@ export default function App() {
                   </select>
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium mb-2">Mode</label>
+                  <div className="flex rounded-lg border border-[#d6d3cc] dark:border-[#4a4947] overflow-hidden">
+                    <button
+                      onClick={() => setMode("dictation")}
+                      className={`flex-1 py-2 text-xs font-medium transition-colors ${
+                        mode === "dictation"
+                          ? "bg-[#d97757] text-white"
+                          : "bg-transparent text-[#878681] hover:bg-[#f0ece5] dark:hover:bg-[#333230]"
+                      }`}
+                    >
+                      Dictation
+                    </button>
+                    <button
+                      onClick={() => setMode("actions")}
+                      className={`flex-1 py-2 text-xs font-medium transition-colors ${
+                        mode === "actions"
+                          ? "bg-[#d97757] text-white"
+                          : "bg-transparent text-[#878681] hover:bg-[#f0ece5] dark:hover:bg-[#333230]"
+                      }`}
+                    >
+                      Actions
+                    </button>
+                  </div>
+                </div>
+
                 <hr className="border-[#e5e3d9] dark:border-[#333230]" />
 
                 <div>
@@ -331,20 +401,83 @@ export default function App() {
                   </div>
 
                   <div className="flex-1 bg-white dark:bg-[#252423] border border-[#e5e3d9] dark:border-[#333230] rounded-xl p-5 overflow-y-auto relative">
-                    {status === "processing" ? (
+                    {/* Processing spinner */}
+                    {status === "processing" && (
                       <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 dark:bg-[#252423]/80 backdrop-blur-sm rounded-xl z-10">
                         <Sparkles className="w-8 h-8 text-[#d97757] dark:text-[#e88a6c] animate-spin-slow mb-4" />
-                        <p className="text-[#1a1919] dark:text-[#fdfcfb] font-medium">Refining with Copilot...</p>
+                        <p className="text-[#1a1919] dark:text-[#fdfcfb] font-medium">
+                          {mode === "actions" ? "Classifying intent..." : "Refining with Copilot..."}
+                        </p>
                       </div>
-                    ) : refinedText ? (
+                    )}
+
+                    {/* VS Code connection prompt */}
+                    {showVsCodePrompt && (
+                      <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
+                        <p className="text-sm text-[#878681]">VS Code with SunYapper extension is required for refinement.</p>
+                        <button
+                          onClick={retryVsCodeConnection}
+                          className="px-4 py-2 bg-[#d97757] text-white rounded-lg text-sm font-medium hover:bg-[#c66949] transition-colors"
+                        >
+                          Retry Connection
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Pending action card */}
+                    {pendingAction && !showVsCodePrompt && (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-[#f0ece5] dark:bg-[#333230] text-[#878681]">
+                            {pendingAction.kind?.replace("_", " ")}
+                          </span>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
+                            pendingAction.risk === "destructive"
+                              ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                              : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                          }`}>
+                            {pendingAction.risk}
+                          </span>
+                        </div>
+                        <p className="text-sm font-medium text-[#2d2d2d] dark:text-[#ececeb]">{pendingAction.description}</p>
+                        <code className="block text-xs bg-[#faf9f7] dark:bg-[#1a1918] border border-[#e5e3d9] dark:border-[#333230] rounded-lg p-3 text-[#878681] break-all">
+                          {pendingAction.command}
+                        </code>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => executeAction(pendingAction)}
+                            className="px-4 py-1.5 bg-[#d97757] text-white rounded-lg text-sm font-medium hover:bg-[#c66949] transition-colors"
+                          >
+                            Execute
+                          </button>
+                          <button
+                            onClick={() => setPendingAction(null)}
+                            className="px-4 py-1.5 border border-[#e5e3d9] dark:border-[#333230] rounded-lg text-sm hover:bg-[#f0ece5] dark:hover:bg-[#333230] transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Action result */}
+                    {actionResult && !pendingAction && !showVsCodePrompt && (
+                      <div className={`flex items-start gap-2 text-sm ${actionResult.success ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                        <span className="font-bold text-base">{actionResult.success ? "✓" : "✗"}</span>
+                        <span>{actionResult.message}</span>
+                      </div>
+                    )}
+
+                    {/* Refined text (dictation mode) */}
+                    {refinedText && !pendingAction && !actionResult && !showVsCodePrompt ? (
                       <div className="text-[#2d2d2d] dark:text-[#ececeb] whitespace-pre-wrap text-base font-serif leading-relaxed">
                         {refinedText}
                       </div>
-                    ) : (
+                    ) : !pendingAction && !actionResult && !showVsCodePrompt && status !== "processing" ? (
                       <div className="h-full flex items-center justify-center text-[#a8a6a1] dark:text-[#6a6863]">
-                        Structured text will appear here.
+                        {mode === "actions" ? "Say a command like \"run tests\" or \"open settings\"" : "Structured text will appear here."}
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               </div>
