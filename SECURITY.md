@@ -187,6 +187,8 @@ To operate fully offline: set `sunyapper.refinementEnabled: false`. Raw transcri
 - [ ] Configure `sunyapper.refinementEnabled: false` for sensitive environments
 - [ ] Deploy via internal software distribution (SCCM, Jamf, etc.)
 - [ ] Grant microphone permission via MDM policy
+- [ ] On macOS: remove quarantine attribute (`xattr -cr /Applications/SunYapper.app`) or sign with your enterprise certificate
+- [ ] On Windows: consider code signing to avoid SmartScreen warnings
 
 ### Configuration for Maximum Privacy
 
