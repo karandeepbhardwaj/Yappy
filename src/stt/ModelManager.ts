@@ -17,28 +17,67 @@ const MODEL_SIZES: Record<string, string> = {
 
 export class ModelManager {
   public readonly modelsDir: string;
+  private readonly bundledModelsDir: string;
 
-  constructor(globalStoragePath: string) {
+  constructor(globalStoragePath: string, extensionPath: string) {
     this.modelsDir = path.join(globalStoragePath, 'models');
+    this.bundledModelsDir = path.join(extensionPath, 'models');
     if (!fs.existsSync(this.modelsDir)) {
       fs.mkdirSync(this.modelsDir, { recursive: true });
     }
   }
 
   getModelPath(model: string): string {
-    return path.join(this.modelsDir, `ggml-${model}.bin`);
+    // 1. Check user-downloaded models first (better quality choices)
+    const downloaded = path.join(this.modelsDir, `ggml-${model}.bin`);
+    if (fs.existsSync(downloaded)) {
+      return downloaded;
+    }
+
+    // 2. Check bundled models (fallback for air-gapped machines)
+    const bundled = path.join(this.bundledModelsDir, `ggml-${model}.bin`);
+    if (fs.existsSync(bundled)) {
+      return bundled;
+    }
+
+    // 3. Return the download path (caller should check isModelAvailable first)
+    return downloaded;
   }
 
+  /** Returns true if the model exists either downloaded or bundled */
+  isModelAvailable(model: string): boolean {
+    const downloaded = path.join(this.modelsDir, `ggml-${model}.bin`);
+    const bundled = path.join(this.bundledModelsDir, `ggml-${model}.bin`);
+    return fs.existsSync(downloaded) || fs.existsSync(bundled);
+  }
+
+  /** Returns true only if the model was explicitly downloaded by the user */
   isModelDownloaded(model: string): boolean {
-    return fs.existsSync(this.getModelPath(model));
+    return fs.existsSync(path.join(this.modelsDir, `ggml-${model}.bin`));
   }
 
-  getAvailableModels(): { name: string; downloaded: boolean; size: string }[] {
-    return Object.keys(MODEL_URLS).map(name => ({
-      name,
-      downloaded: this.isModelDownloaded(name),
-      size: MODEL_SIZES[name],
-    }));
+  /** Returns the name of any available model, preferring the configured one */
+  findAnyAvailableModel(preferred: string): string | null {
+    if (this.isModelAvailable(preferred)) return preferred;
+    // Fall back to any available model
+    for (const name of ['tiny', 'base', 'small']) {
+      if (this.isModelAvailable(name)) return name;
+    }
+    return null;
+  }
+
+  getAvailableModels(): { name: string; available: boolean; bundled: boolean; downloaded: boolean; size: string }[] {
+    return Object.keys(MODEL_URLS).map(name => {
+      const downloaded = this.isModelDownloaded(name);
+      const bundled = fs.existsSync(path.join(this.bundledModelsDir, `ggml-${name}.bin`));
+      return {
+        name,
+        available: downloaded || bundled,
+        bundled,
+        downloaded,
+        size: MODEL_SIZES[name],
+      };
+    });
   }
 
   async downloadModel(model: string): Promise<string> {
@@ -47,7 +86,7 @@ export class ModelManager {
       throw new Error(`Unknown model: ${model}`);
     }
 
-    const destPath = this.getModelPath(model);
+    const destPath = path.join(this.modelsDir, `ggml-${model}.bin`);
     if (fs.existsSync(destPath)) {
       return destPath;
     }

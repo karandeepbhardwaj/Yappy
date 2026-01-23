@@ -146,6 +146,35 @@ function bundleSoxMacOS(destDir) {
   } catch { /* ignore */ }
 }
 
+/** Download the tiny whisper model as a bundled fallback for air-gapped machines */
+function bundleTinyModel() {
+  const modelsDir = path.join(__dirname, '..', 'models');
+  const modelPath = path.join(modelsDir, 'ggml-tiny.bin');
+
+  if (fs.existsSync(modelPath)) {
+    console.log('\n[model] ggml-tiny.bin already bundled');
+    return;
+  }
+
+  if (!fs.existsSync(modelsDir)) {
+    fs.mkdirSync(modelsDir, { recursive: true });
+  }
+
+  const url = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin';
+  console.log('\n[model] Downloading ggml-tiny.bin (~75MB) for air-gapped fallback...');
+
+  try {
+    // Use curl for large file with redirect following
+    execSync(`curl -L -o "${modelPath}" "${url}"`, { stdio: 'inherit', timeout: 300000 });
+    const size = (fs.statSync(modelPath).size / 1024 / 1024).toFixed(1);
+    console.log(`  ggml-tiny.bin downloaded (${size} MB)`);
+  } catch (err) {
+    console.log('  WARNING: Failed to download tiny model. Air-gapped fallback unavailable.');
+    console.log('  Users will need to download a model manually.');
+    if (fs.existsSync(modelPath)) fs.unlinkSync(modelPath);
+  }
+}
+
 function main() {
   const platformKey = getPlatformKey();
   const destDir = path.join(BIN_DIR, platformKey);
@@ -167,7 +196,14 @@ function main() {
     console.log('  Linux: install via package manager and copy binaries to bin/linux-x64/');
   }
 
-  console.log('Done.');
+  // Bundle tiny model for air-gapped fallback
+  if (process.argv.includes('--with-model')) {
+    bundleTinyModel();
+  } else {
+    console.log('\n[model] Skipping model bundle. Use --with-model to include ggml-tiny.bin for air-gapped machines.');
+  }
+
+  console.log('\nDone.');
 }
 
 main();

@@ -133,21 +133,41 @@ export class AudioPanel {
     const config = getConfig();
 
     try {
-      // Check model is downloaded
-      if (!this.modelManager.isModelDownloaded(config.whisperModel)) {
+      // Find a model: preferred > any available > prompt download
+      let model = this.modelManager.findAnyAvailableModel(config.whisperModel);
+
+      if (!model) {
         const action = await vscode.window.showWarningMessage(
-          `SunYapper: Model "${config.whisperModel}" not downloaded.`, 'Download Now'
+          'SunYapper: No whisper model available. Download one now?',
+          'Download tiny (~75MB)', 'Download base (~142MB)'
         );
-        if (action === 'Download Now') {
-          await this.modelManager.downloadModel(config.whisperModel);
+        if (action) {
+          const choice = action.includes('tiny') ? 'tiny' : 'base';
+          try {
+            await this.modelManager.downloadModel(choice);
+            model = choice;
+          } catch (dlErr: unknown) {
+            const dlMsg = dlErr instanceof Error ? dlErr.message : String(dlErr);
+            this.panel.webview.postMessage({
+              type: 'error',
+              message: `Download failed: ${dlMsg}. For air-gapped machines, place a model file in the models/ directory.`,
+            });
+            return;
+          }
         } else {
           this.panel.webview.postMessage({ type: 'setState', state: 'idle' });
           return;
         }
       }
 
+      if (model !== config.whisperModel) {
+        vscode.window.showInformationMessage(
+          `SunYapper: Using "${model}" model (configured "${config.whisperModel}" not available).`
+        );
+      }
+
       // Transcribe with whisper-cli
-      const rawText = await this.whisperEngine.transcribe(wavPath, config.whisperModel, config.language);
+      const rawText = await this.whisperEngine.transcribe(wavPath, model, config.language);
 
       if (!rawText || rawText.trim().length === 0) {
         this.panel.webview.postMessage({
