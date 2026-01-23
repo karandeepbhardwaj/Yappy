@@ -8,10 +8,11 @@
   const timerEl = document.getElementById('timer');
   const statusEl = document.getElementById('status');
   const btnRecord = document.getElementById('btn-record');
-  const btnStop = document.getElementById('btn-stop');
   const btnInsert = document.getElementById('btn-insert');
   const rawTextEl = document.getElementById('raw-text');
   const refinedTextEl = document.getElementById('refined-text');
+  const cardRaw = document.getElementById('card-raw');
+  const cardRefined = document.getElementById('card-refined');
 
   let startTime = 0;
   let timerInterval = null;
@@ -34,15 +35,19 @@
   function setState(state) {
     statusEl.className = 'status-badge status-' + state;
     statusEl.textContent = state;
-    btnRecord.disabled = state === 'recording' || state === 'processing';
-    btnStop.disabled = state !== 'recording';
+    btnRecord.disabled = state === 'processing';
     btnInsert.disabled = state !== 'done';
 
+    // Toggle record button appearance
     if (state === 'recording') {
+      btnRecord.classList.add('is-recording');
+      btnRecord.title = 'Stop recording';
       timerEl.classList.add('active');
       startTimer();
       levelHistory = [];
     } else {
+      btnRecord.classList.remove('is-recording');
+      btnRecord.title = 'Start recording';
       timerEl.classList.remove('active');
       stopTimer();
     }
@@ -50,6 +55,17 @@
     if (state === 'idle') {
       drawIdleLine();
     }
+
+    // Processing cursor on refined text
+    if (state === 'processing') {
+      refinedTextEl.classList.add('processing');
+    } else {
+      refinedTextEl.classList.remove('processing');
+    }
+
+    // Card highlight when content present
+    if (rawTextEl.textContent) cardRaw.classList.add('has-content');
+    if (refinedTextEl.textContent) cardRefined.classList.add('has-content');
   }
 
   function formatTime(ms) {
@@ -91,34 +107,64 @@
   }
 
   function drawIdleLine() {
-    ctx.fillStyle = getBgColor();
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = getMutedColor();
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, canvas.height / 2);
-    ctx.lineTo(canvas.width, canvas.height / 2);
-    ctx.stroke();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    var centerY = canvas.height / 2;
+    // Draw subtle center dots
+    ctx.fillStyle = getMutedColor();
+    ctx.globalAlpha = 0.2;
+    var dotCount = 40;
+    var gap = canvas.width / dotCount;
+    for (var i = 0; i < dotCount; i++) {
+      ctx.beginPath();
+      ctx.arc(gap * i + gap / 2, centerY, 1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
   }
 
   function drawWaveform() {
-    ctx.fillStyle = getBgColor();
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     if (levelHistory.length === 0) {
       drawIdleLine();
       return;
     }
 
-    var barWidth = canvas.width / MAX_LEVELS;
+    var barGap = 3;
+    var barWidth = 2;
+    var totalBarWidth = barWidth + barGap;
+    var maxBars = Math.floor(canvas.width / totalBarWidth);
     var centerY = canvas.height / 2;
-    ctx.fillStyle = '#c0392b';
+    var displayBars = Math.min(levelHistory.length, maxBars);
+    var startIdx = Math.max(0, levelHistory.length - maxBars);
+    var startX = (canvas.width - displayBars * totalBarWidth) / 2;
 
-    for (var i = 0; i < levelHistory.length; i++) {
-      var level = levelHistory[i];
-      var barHeight = Math.max(2, level * canvas.height * 0.9);
-      var x = i * barWidth;
-      ctx.fillRect(x, centerY - barHeight / 2, Math.max(1, barWidth - 1), barHeight);
+    for (var i = 0; i < displayBars; i++) {
+      var level = levelHistory[startIdx + i];
+      var barHeight = Math.max(3, level * canvas.height * 0.85);
+      var x = startX + i * totalBarWidth;
+
+      // Gradient from accent to red
+      var intensity = Math.min(1, level * 3);
+      var r = Math.round(59 + (239 - 59) * intensity);
+      var g = Math.round(130 + (68 - 130) * intensity);
+      var b = Math.round(246 + (68 - 246) * intensity);
+      ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
+
+      // Rounded bar
+      var radius = barWidth / 2;
+      var y = centerY - barHeight / 2;
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + barWidth - radius, y);
+      ctx.arcTo(x + barWidth, y, x + barWidth, y + radius, radius);
+      ctx.lineTo(x + barWidth, y + barHeight - radius);
+      ctx.arcTo(x + barWidth, y + barHeight, x + barWidth - radius, y + barHeight, radius);
+      ctx.lineTo(x + radius, y + barHeight);
+      ctx.arcTo(x, y + barHeight, x, y + barHeight - radius, radius);
+      ctx.lineTo(x, y + radius);
+      ctx.arcTo(x, y, x + radius, y, radius);
+      ctx.fill();
     }
   }
 
@@ -326,13 +372,15 @@
   // ---------- Button handlers ----------
 
   btnRecord.addEventListener('click', function () {
-    rawTextEl.textContent = '';
-    refinedTextEl.textContent = '';
-    startRecording();
-  });
-
-  btnStop.addEventListener('click', function () {
-    stopRecordingAndTransmit();
+    if (isRecording) {
+      stopRecordingAndTransmit();
+    } else {
+      rawTextEl.textContent = '';
+      refinedTextEl.textContent = '';
+      cardRaw.classList.remove('has-content');
+      cardRefined.classList.remove('has-content');
+      startRecording();
+    }
   });
 
   btnInsert.addEventListener('click', function () {
@@ -384,6 +432,7 @@
 
       case 'transcription':
         rawTextEl.textContent = msg.text;
+        cardRaw.classList.add('has-content');
         if (!msg.refining) {
           setState('done');
         }
@@ -391,6 +440,7 @@
 
       case 'refined':
         refinedTextEl.textContent = msg.text;
+        cardRefined.classList.add('has-content');
         setState('done');
         break;
 
