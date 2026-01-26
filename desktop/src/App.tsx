@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import logoSvg from "./assets/logo.svg";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import AnimatedLogo from "./AnimatedLogo";
 
 type AppState = "idle" | "recording" | "processing" | "done";
 
@@ -122,9 +123,16 @@ function App() {
 
   return (
     <div className="app">
-      <div className="titlebar" data-tauri-drag-region>
+      <div
+        className="titlebar"
+        onMouseDown={(e) => {
+          // Only drag from the titlebar itself, not child buttons
+          if ((e.target as HTMLElement).closest('.titlebar-right')) return;
+          getCurrentWindow().startDragging();
+        }}
+      >
         <div className="titlebar-left">
-          <img src={logoSvg} alt="SunYapper" className="titlebar-logo" />
+          <AnimatedLogo size={28} />
         </div>
         <div className="titlebar-right">
           <div className="connection-indicator">
