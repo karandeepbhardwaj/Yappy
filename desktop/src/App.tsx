@@ -7,6 +7,7 @@ import AnimatedLogo from "./AnimatedLogo";
 type AppState = "idle" | "recording" | "processing" | "done";
 
 function App() {
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
   const [state, setState] = useState<AppState>("idle");
   const [timer, setTimer] = useState("0:00.0");
   const [rawText, setRawText] = useState("");
@@ -241,7 +242,7 @@ function App() {
           </label>
           <span className="setting-info">Model: base</span>
         </div>
-        <div className="shortcut-hint"><kbd>Cmd+Shift+Y</kbd> to toggle from anywhere</div>
+        <div className="shortcut-hint"><kbd>{isMac ? "Cmd" : "Ctrl"}+Shift+Y</kbd> to toggle from anywhere</div>
       </div>
     </div>
   );

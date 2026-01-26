@@ -1,0 +1,104 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: '--target aarch64-apple-darwin'
+            target: aarch64-apple-darwin
+          - platform: windows-latest
+            args: '--target x86_64-pc-windows-msvc'
+            target: x86_64-pc-windows-msvc
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workdir: desktop/src-tauri
+
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm ci
+
+      - name: Download binaries (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: node scripts/download-binaries.js
+        working-directory: .
+
+      - name: Download binaries (Windows)
+        if: matrix.platform == 'windows-latest'
+        run: node scripts/download-binaries.js
+        working-directory: .
+
+      - name: Bundle sidecars
+        working-directory: desktop
+        run: node scripts/bundle-sidecars.cjs
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: desktop
+          args: ${{ matrix.args }}
+          tagName: ${{ github.ref_name }}
+          releaseName: SunYapper ${{ github.ref_name }}
+          releaseBody: |
+            See the CHANGELOG for details.
+          releaseDraft: true
+          prerelease: false
+
+  build-vscode:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compile extension
+        run: npx tsc -p ./tsconfig.json
+
+      - name: Package .vsix
+        run: npx @vscode/vsce package --no-dependencies -o sunyapper-${{ github.ref_name }}.vsix
+
+      - name: Upload .vsix to release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: sunyapper-${{ github.ref_name }}.vsix
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

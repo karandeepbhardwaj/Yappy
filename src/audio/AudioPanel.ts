@@ -354,7 +354,7 @@ export class AudioPanel {
       </select>
     </label>
   </div>
-  <div class="hint">Press <kbd>Cmd+Shift+Y</kbd> to toggle recording</div>
+  <div class="hint">Press <kbd>Cmd/Ctrl+Shift+Y</kbd> to toggle recording</div>
 
   <script nonce="${nonce}" src="${jsUri}"></script>
 </body>

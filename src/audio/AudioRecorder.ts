@@ -53,7 +53,11 @@ export class AudioRecorder {
 
     await new Promise<void>((resolve) => {
       proc.on('close', () => resolve());
-      proc.kill('SIGINT');
+      if (process.platform === 'win32') {
+        proc.stdin?.end();
+      } else {
+        proc.kill('SIGINT');
+      }
       setTimeout(() => resolve(), 3000);
     });
 

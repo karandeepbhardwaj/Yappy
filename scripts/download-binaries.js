@@ -146,6 +146,66 @@ function bundleSoxMacOS(destDir) {
   } catch { /* ignore */ }
 }
 
+/** Download and extract sox for Windows */
+function bundleSoxWindows(destDir) {
+  const destBin = path.join(destDir, 'sox.exe');
+  if (fs.existsSync(destBin)) {
+    console.log('  sox.exe already bundled');
+    return;
+  }
+
+  const zipPath = path.join(destDir, 'sox.zip');
+  const url = 'https://sourceforge.net/projects/sox/files/sox/14.4.2/sox-14.4.2-win32.zip';
+  console.log('  Downloading sox for Windows...');
+  try {
+    execSync(`curl -L -o "${zipPath}" "${url}"`, { stdio: 'inherit', timeout: 120000 });
+    execSync(`tar -xf "${zipPath}" -C "${destDir}" --strip-components=1 --include="*.exe" --include="*.dll"`, { stdio: 'pipe' });
+    fs.unlinkSync(zipPath);
+    // Rename sox.exe if needed — sox-14.4.2 ships as sox.exe already
+    const extractedSox = path.join(destDir, 'sox.exe');
+    if (!fs.existsSync(extractedSox)) {
+      // Try finding extracted files
+      const files = fs.readdirSync(destDir);
+      console.log('  Extracted files:', files.join(', '));
+    }
+    console.log('  sox.exe downloaded and extracted');
+  } catch (err) {
+    console.log('  WARNING: Failed to download sox for Windows:', err.message);
+    console.log('  Download manually from https://sourceforge.net/projects/sox/files/sox/14.4.2/sox-14.4.2-win32.zip');
+    if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
+  }
+}
+
+/** Download and extract whisper-cli for Windows */
+function bundleWhisperWindows(destDir) {
+  const destBin = path.join(destDir, 'whisper-cli.exe');
+  if (fs.existsSync(destBin)) {
+    console.log('  whisper-cli.exe already bundled');
+    return;
+  }
+
+  const zipPath = path.join(destDir, 'whisper-bin.zip');
+  const url = 'https://github.com/ggml-org/whisper.cpp/releases/latest/download/whisper-bin-x64.zip';
+  console.log('  Downloading whisper-cli for Windows...');
+  try {
+    execSync(`curl -L -o "${zipPath}" "${url}"`, { stdio: 'inherit', timeout: 180000 });
+    execSync(`tar -xf "${zipPath}" -C "${destDir}"`, { stdio: 'pipe' });
+    fs.unlinkSync(zipPath);
+    // whisper-bin-x64.zip contains whisper-cli.exe and DLLs at root
+    if (fs.existsSync(destBin)) {
+      console.log('  whisper-cli.exe downloaded and extracted');
+    } else {
+      const files = fs.readdirSync(destDir);
+      console.log('  Extracted files:', files.join(', '));
+      console.log('  WARNING: whisper-cli.exe not found after extraction — check extracted files above');
+    }
+  } catch (err) {
+    console.log('  WARNING: Failed to download whisper-cli for Windows:', err.message);
+    console.log('  Download manually from https://github.com/ggml-org/whisper.cpp/releases');
+    if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
+  }
+}
+
 /** Download the tiny whisper model as a bundled fallback for air-gapped machines */
 function bundleTinyModel() {
   const modelsDir = path.join(__dirname, '..', 'models');
@@ -189,9 +249,8 @@ function main() {
     bundleWhisperMacOS(destDir);
     bundleSoxMacOS(destDir);
   } else if (process.platform === 'win32') {
-    console.log('  Windows: download whisper from https://github.com/ggml-org/whisper.cpp/releases');
-    console.log('  Windows: download sox from https://sourceforge.net/projects/sox/');
-    console.log('  Place binaries in bin/win32-x64/');
+    bundleWhisperWindows(destDir);
+    bundleSoxWindows(destDir);
   } else {
     console.log('  Linux: install via package manager and copy binaries to bin/linux-x64/');
   }
