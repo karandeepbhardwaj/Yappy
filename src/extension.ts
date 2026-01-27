@@ -19,8 +19,15 @@ export function activate(context: vscode.ExtensionContext) {
   const textInserter = new TextInserter();
 
   // Start WebSocket bridge for SunYapper desktop app
-  const bridge = new CopilotBridge(copilotRefiner);
-  context.subscriptions.push(bridge.start());
+  try {
+    const bridge = new CopilotBridge(copilotRefiner);
+    context.subscriptions.push(bridge.start());
+    console.log('SunYapper: WebSocket bridge started on port 19542');
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('SunYapper: Failed to start WebSocket bridge:', msg);
+    vscode.window.showWarningMessage(`SunYapper Bridge failed: ${msg}`);
+  }
 
   // Status bar
   statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);

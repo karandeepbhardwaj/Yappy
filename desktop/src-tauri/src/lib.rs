@@ -26,9 +26,89 @@ fn start_recording(state: State<AppState>, app: AppHandle) -> Result<(), String>
 fn stop_recording(state: State<AppState>) -> Result<String, String> {
     let mut rec = state.recording.lock().map_err(|e| e.to_string())?;
     match rec.take() {
-        Some(handle) => recording::stop(handle).map_err(|e| e.to_string()),
+        Some(handle) => {
+            // Stop recording — returns the final segment WAV path
+            // Do NOT cleanup yet — the caller needs to transcribe this file first
+            recording::stop(handle).map_err(|e| e.to_string())
+        }
         None => Err("Not recording".into()),
     }
+}
+
+#[tauri::command]
+fn cleanup_recording_files() {
+    recording::cleanup_segments();
+}
+
+/// Rotate current recording segment and transcribe it.
+/// Returns the interim transcription text for the completed segment.
+#[tauri::command]
+fn interim_transcribe(state: State<AppState>, app: AppHandle, language: String) -> Result<String, String> {
+    let mut rec = state.recording.lock().map_err(|e| e.to_string())?;
+    let handle = rec.as_mut().ok_or("Not recording")?;
+
+    // Rotate: stop current segment, start new one, get completed WAV path
+    let segment_path = recording::rotate_segment(handle).map_err(|e| e.to_string())?;
+
+    // Transcribe the completed segment (using tiny model for speed)
+    let resource_dir = app
+        .path()
+        .resource_dir()
+        .map_err(|e| format!("No resource dir: {e}"))?;
+
+    // Try tiny model first for speed, fall back to base
+    let model_path = {
+        let tiny = resource_dir.join("resources").join("models").join("ggml-tiny.bin");
+        let base = resource_dir.join("resources").join("models").join("ggml-base.bin");
+        let tiny_alt = resource_dir.join("models").join("ggml-tiny.bin");
+        let base_alt = resource_dir.join("models").join("ggml-base.bin");
+        if tiny.exists() { tiny }
+        else if tiny_alt.exists() { tiny_alt }
+        else if base.exists() { base }
+        else if base_alt.exists() { base_alt }
+        else { return Err("No model found".into()); }
+    };
+
+    let whisper_bin = resolve_sidecar(&app, "whisper-cli")?;
+
+    let resource_lib = if resource_dir.join("binaries").join("lib").exists() {
+        resource_dir.join("binaries").join("lib")
+    } else {
+        resource_dir.join("resources").join("binaries").join("lib")
+    };
+    let exe_lib = whisper_bin.parent().map(|p| p.join("lib")).unwrap_or_default();
+    let lib_path = if resource_lib.exists() { resource_lib } else { exe_lib };
+
+    let mut cmd = std::process::Command::new(&whisper_bin);
+    let mut args = vec!["-m".to_string(), model_path.to_str().unwrap().to_string(), "-np".to_string(), "-nt".to_string()];
+    if !language.is_empty() && language != "auto" {
+        args.push("-l".to_string());
+        args.push(language.clone());
+    }
+    if language != "en" {
+        args.push("-tr".to_string());
+    }
+    args.push("-f".to_string());
+    args.push(segment_path.clone());
+    cmd.args(&args);
+
+    if lib_path.exists() {
+        #[cfg(target_os = "macos")]
+        cmd.env("DYLD_LIBRARY_PATH", &lib_path);
+        #[cfg(target_os = "linux")]
+        cmd.env("LD_LIBRARY_PATH", &lib_path);
+    }
+
+    let output = cmd.output().map_err(|e| format!("Whisper failed: {e}"))?;
+
+    // Clean up segment file
+    let _ = std::fs::remove_file(&segment_path);
+
+    if !output.status.success() {
+        return Err("Interim transcription failed".into());
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
 #[tauri::command]
@@ -118,8 +198,8 @@ fn transcribe(app: AppHandle, audio_path: String, language: String) -> Result<St
 }
 
 #[tauri::command]
-fn refine_via_copilot(text: String, language: String) -> Result<String, String> {
-    copilot::refine_text(&text, &language)
+fn refine_via_copilot(text: String, language: String, model: String) -> Result<String, String> {
+    copilot::refine_text(&text, &language, &model)
 }
 
 #[tauri::command]
@@ -204,6 +284,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             start_recording,
             stop_recording,
+            cleanup_recording_files,
+            interim_transcribe,
             transcribe,
             refine_via_copilot,
             paste_text,

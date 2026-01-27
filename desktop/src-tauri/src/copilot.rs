@@ -6,7 +6,7 @@ const VSCODE_WS_ADDR: &str = "127.0.0.1:19542";
 /// Send raw text to VS Code's CopilotBridge for LLM refinement.
 /// Uses a simple HTTP-upgraded WebSocket handshake, then a single JSON message exchange.
 /// Returns the refined text, or the original text if VS Code is unreachable.
-pub fn refine_text(raw_text: &str, language: &str) -> Result<String, String> {
+pub fn refine_text(raw_text: &str, language: &str, model: &str) -> Result<String, String> {
     // Connect with a short timeout
     let stream = TcpStream::connect_timeout(
         &VSCODE_WS_ADDR.parse().unwrap(),
@@ -53,7 +53,8 @@ pub fn refine_text(raw_text: &str, language: &str) -> Result<String, String> {
         "type": "refine",
         "id": id,
         "text": raw_text,
-        "language": language
+        "language": language,
+        "model": model
     })
     .to_string();
 
