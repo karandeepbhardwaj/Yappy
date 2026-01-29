@@ -5,10 +5,12 @@ use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
 mod copilot;
+mod plugins;
 mod recording;
 
 struct AppState {
     recording: Mutex<Option<recording::RecordingHandle>>,
+    plugins: plugins::PluginRegistry,
 }
 
 #[tauri::command]
@@ -166,6 +168,17 @@ fn execute_action_via_vscode(action: serde_json::Value) -> Result<serde_json::Va
 }
 
 #[tauri::command]
+fn list_app_plugins(state: State<AppState>) -> serde_json::Value {
+    serde_json::json!({ "plugins": state.plugins.list() })
+}
+
+#[tauri::command]
+fn execute_app_action(state: State<AppState>, app: String, action_id: String, params: serde_json::Value) -> serde_json::Value {
+    let result = state.plugins.execute(&app, &action_id, &params);
+    serde_json::json!({ "success": result.success, "message": result.message })
+}
+
+#[tauri::command]
 fn paste_text(app: AppHandle, text: String) -> Result<(), String> {
     // Copy text to system clipboard
     app.clipboard()
@@ -228,6 +241,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(AppState {
             recording: Mutex::new(None),
+            plugins: plugins::PluginRegistry::new(),
         })
         .setup(|app| {
             // Global shortcut
@@ -253,6 +267,8 @@ pub fn run() {
             refine_via_copilot,
             classify_via_copilot,
             execute_action_via_vscode,
+            list_app_plugins,
+            execute_app_action,
             paste_text,
             check_vscode_connection,
         ])

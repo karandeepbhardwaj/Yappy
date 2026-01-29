@@ -204,6 +204,16 @@ export class AudioPanel {
             } else {
               this.panel.webview.postMessage({ type: 'showAction', action });
             }
+          } else if (result.intent === 'app_action' && result.app && result.actionId) {
+            this.panel.webview.postMessage({
+              type: 'showAction',
+              action: {
+                kind: `app:${result.app}:${result.actionId}`,
+                command: JSON.stringify(result.params || {}),
+                description: result.description || `${result.app}: ${result.actionId}`,
+                risk: 'safe',
+              }
+            });
           }
         } catch (err: unknown) {
           const errMsg = err instanceof Error ? err.message : String(err);

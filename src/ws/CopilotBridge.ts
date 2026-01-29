@@ -102,6 +102,10 @@ export class CopilotBridge {
         }
         break;
       }
+      case 'execute_app_action': {
+        ws.send(JSON.stringify({ type: 'error', id: msg.id, message: 'App actions should be executed locally, not via VS Code' }));
+        break;
+      }
       case 'ping': {
         ws.send(JSON.stringify({ type: 'pong', capabilities: ['refine', 'classify', 'execute'] }));
         break;
