@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { AudioPanel } from './audio/AudioPanel';
+import { AudioRecorder } from './audio/AudioRecorder';
 import { ModelManager } from './stt/ModelManager';
 import { CopilotRefiner } from './llm/CopilotRefiner';
 import { TextInserter } from './output/TextInserter';
@@ -8,6 +9,7 @@ import { getConfig } from './config/Settings';
 let statusBarItem: vscode.StatusBarItem;
 
 export function activate(context: vscode.ExtensionContext) {
+  const audioRecorder = new AudioRecorder();
   const modelManager = new ModelManager(context.globalStorageUri.fsPath);
   const copilotRefiner = new CopilotRefiner();
   const textInserter = new TextInserter();
@@ -25,6 +27,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('sunyapper.toggleDictation', () => {
       const panel = AudioPanel.createOrShow(
         context.extensionUri,
+        audioRecorder,
         modelManager,
         copilotRefiner,
         textInserter
@@ -38,6 +41,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('sunyapper.openPanel', () => {
       AudioPanel.createOrShow(
         context.extensionUri,
+        audioRecorder,
         modelManager,
         copilotRefiner,
         textInserter

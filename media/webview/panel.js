@@ -19,13 +19,7 @@
   let levelHistory = [];
   const MAX_LEVELS = 200;
 
-  // Audio capture state
-  let audioContext = null;
-  let mediaStream = null;
-  let scriptProcessor = null;
-  let sourceNode = null;
-  let pcmChunks = [];
-  let nativeSampleRate = 16000;
+  // Recording state (driven by extension host, not webview)
   let isRecording = false;
 
   // WASM state — loaded lazily on first transcription request
@@ -168,114 +162,8 @@
     }
   }
 
-  // ---------- Audio capture (Phase 1) ----------
-
-  async function startRecording() {
-    if (isRecording) return;
-
-    try {
-      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    } catch (err) {
-      vscode.postMessage({ type: 'error', message: 'Microphone access denied: ' + err.message });
-      return;
-    }
-
-    audioContext = new AudioContext();
-    nativeSampleRate = audioContext.sampleRate;
-    pcmChunks = [];
-    isRecording = true;
-
-    sourceNode = audioContext.createMediaStreamSource(mediaStream);
-
-    // ScriptProcessorNode works on the main thread without a separate worker file,
-    // so no worker-src blob: CSP directive is required.
-    scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
-    scriptProcessor.onaudioprocess = function (e) {
-      if (!isRecording) return;
-      var inputData = e.inputBuffer.getChannelData(0);
-      pcmChunks.push(new Float32Array(inputData));
-
-      // RMS level for waveform
-      var sum = 0;
-      for (var i = 0; i < inputData.length; i++) {
-        sum += inputData[i] * inputData[i];
-      }
-      var rms = Math.sqrt(sum / inputData.length);
-      levelHistory.push(Math.min(1, rms * 4));
-      if (levelHistory.length > MAX_LEVELS) {
-        levelHistory.shift();
-      }
-      drawWaveform();
-    };
-
-    sourceNode.connect(scriptProcessor);
-    scriptProcessor.connect(audioContext.destination);
-
-    setState('recording');
-  }
-
-  function stopRecordingAndTransmit() {
-    if (!isRecording || !audioContext) return;
-
-    isRecording = false;
-    scriptProcessor.disconnect();
-    sourceNode.disconnect();
-    mediaStream.getTracks().forEach(function (t) { t.stop(); });
-    audioContext.close();
-
-    const chunks = pcmChunks;
-    audioContext = null;
-    mediaStream = null;
-    scriptProcessor = null;
-    sourceNode = null;
-    pcmChunks = [];
-
-    var totalLength = 0;
-    for (var i = 0; i < chunks.length; i++) { totalLength += chunks[i].length; }
-    if (totalLength === 0) {
-      vscode.postMessage({ type: 'error', message: 'No audio captured.' });
-      setState('idle');
-      return;
-    }
-
-    var merged = new Float32Array(totalLength);
-    var offset = 0;
-    for (var i = 0; i < chunks.length; i++) {
-      merged.set(chunks[i], offset);
-      offset += chunks[i].length;
-    }
-
-    var pcm16k = nativeSampleRate === 16000 ? merged : downsampleFloat32(merged, nativeSampleRate, 16000);
-    var int16 = float32ToInt16(pcm16k);
-
-    setState('processing');
-    vscode.postMessage({
-      type: 'audioData',
-      pcm16: Array.from(int16),
-      sampleRate: 16000,
-    });
-  }
-
-  function downsampleFloat32(buffer, fromRate, toRate) {
-    if (fromRate === toRate) return buffer;
-    var ratio = fromRate / toRate;
-    var newLength = Math.round(buffer.length / ratio);
-    var result = new Float32Array(newLength);
-    for (var i = 0; i < newLength; i++) {
-      var srcIdx = Math.floor(i * ratio);
-      result[i] = buffer[Math.min(srcIdx, buffer.length - 1)];
-    }
-    return result;
-  }
-
-  function float32ToInt16(float32) {
-    var int16 = new Int16Array(float32.length);
-    for (var i = 0; i < float32.length; i++) {
-      var s = Math.max(-1, Math.min(1, float32[i]));
-      int16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-    }
-    return int16;
-  }
+  // Audio capture is handled by the extension host (sox/rec).
+  // The webview only handles UI and WASM transcription.
 
   // ---------- WASM transcription ----------
 
@@ -373,13 +261,13 @@
 
   btnRecord.addEventListener('click', function () {
     if (isRecording) {
-      stopRecordingAndTransmit();
+      vscode.postMessage({ type: 'stop' });
     } else {
       rawTextEl.textContent = '';
       refinedTextEl.textContent = '';
       cardRaw.classList.remove('has-content');
       cardRefined.classList.remove('has-content');
-      startRecording();
+      vscode.postMessage({ type: 'record' });
     }
   });
 
@@ -396,18 +284,17 @@
     var msg = event.data;
     switch (msg.type) {
 
-      case 'toggleRecording':
-        if (isRecording) {
-          stopRecordingAndTransmit();
-        } else {
-          rawTextEl.textContent = '';
-          refinedTextEl.textContent = '';
-          startRecording();
-        }
+      case 'setState':
+        isRecording = msg.state === 'recording';
+        setState(msg.state);
         break;
 
-      case 'setState':
-        setState(msg.state);
+      case 'audioLevel':
+        levelHistory.push(msg.level);
+        if (levelHistory.length > MAX_LEVELS) {
+          levelHistory.shift();
+        }
+        drawWaveform();
         break;
 
       // Extension host sends this back after receiving audioData.
