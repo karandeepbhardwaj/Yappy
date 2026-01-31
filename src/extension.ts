@@ -6,6 +6,7 @@ import { WhisperEngine } from './stt/WhisperEngine';
 import { CopilotRefiner } from './llm/CopilotRefiner';
 import { TextInserter } from './output/TextInserter';
 import { getConfig } from './config/Settings';
+import { CopilotBridge } from './ws/CopilotBridge';
 
 let statusBarItem: vscode.StatusBarItem;
 
@@ -16,6 +17,10 @@ export function activate(context: vscode.ExtensionContext) {
   const whisperEngine = new WhisperEngine(modelManager, extPath);
   const copilotRefiner = new CopilotRefiner();
   const textInserter = new TextInserter();
+
+  // Start WebSocket bridge for SunYapper desktop app
+  const bridge = new CopilotBridge(copilotRefiner);
+  context.subscriptions.push(bridge.start());
 
   // Status bar
   statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
