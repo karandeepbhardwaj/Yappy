@@ -233,6 +233,10 @@ export class AudioPanel {
       vscode.Uri.joinPath(this.extensionUri, 'media', 'webview', 'panel.js')
     );
 
+    const logoUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'media', 'webview', 'logo.svg')
+    );
+
     const nonce = getNonce();
 
     return `<!DOCTYPE html>
@@ -240,14 +244,14 @@ export class AudioPanel {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}'; img-src ${webview.cspSource};">
   <link rel="stylesheet" href="${cssUri}">
   <title>SunYapper</title>
 </head>
 <body>
   <div class="header">
     <div class="brand">
-      <div class="brand-icon"><span></span><span></span><span></span><span></span><span></span></div>
+      <img src="${logoUri}" alt="SunYapper" style="width:22px;height:22px;border-radius:4px;">
       <h2>SunYapper</h2>
     </div>
     <span id="status" class="status-badge status-idle">idle</span>

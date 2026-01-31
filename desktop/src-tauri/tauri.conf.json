@@ -14,11 +14,15 @@
       {
         "title": "SunYapper",
         "width": 380,
-        "height": 520,
+        "height": 560,
+        "minWidth": 320,
+        "minHeight": 400,
         "resizable": true,
         "decorations": false,
-        "transparent": true,
-        "alwaysOnTop": true
+        "transparent": false,
+        "alwaysOnTop": true,
+        "hiddenTitle": true,
+        "titleBarStyle": "Overlay"
       }
     ],
     "security": {
