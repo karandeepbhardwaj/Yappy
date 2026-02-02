@@ -126,24 +126,28 @@ function App() {
       <div
         className="titlebar"
         onMouseDown={(e) => {
-          // Only drag from the titlebar itself, not child buttons
-          if ((e.target as HTMLElement).closest('.titlebar-right')) return;
+          const target = e.target as HTMLElement;
+          if (target.closest('.no-drag')) return;
+          e.preventDefault();
           getCurrentWindow().startDragging();
         }}
       >
-        <div className="titlebar-left">
-          <AnimatedLogo size={28} />
+        <div className="window-controls no-drag">
+          <button className="win-btn close" onClick={() => getCurrentWindow().close()} title="Close" />
+          <button className="win-btn minimize" onClick={() => getCurrentWindow().minimize()} title="Minimize" />
         </div>
-        <div className="titlebar-right">
-          <div className="connection-indicator">
-            <div className={`connection-dot ${vsConnected ? "connected" : ""}`} />
-            <span>{vsConnected ? "Copilot" : "Offline"}</span>
-          </div>
+        <span className="titlebar-label">SunYapper</span>
+        <div className="connection-indicator">
+          <div className={`connection-dot ${vsConnected ? "connected" : ""}`} />
+          <span>{vsConnected ? "Copilot" : "Offline"}</span>
         </div>
       </div>
 
       <div className="content">
         <div className="record-area">
+          <div className="mascot">
+            <AnimatedLogo size={80} phase={state} />
+          </div>
           <button
             className={`record-btn ${state === "recording" ? "recording" : ""}`}
             onClick={toggleRecording}
