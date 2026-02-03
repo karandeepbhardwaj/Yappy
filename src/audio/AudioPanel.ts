@@ -4,6 +4,8 @@ import { AudioRecorder } from './AudioRecorder';
 import { WhisperEngine } from '../stt/WhisperEngine';
 import { ModelManager } from '../stt/ModelManager';
 import { CopilotRefiner } from '../llm/CopilotRefiner';
+import { IntentClassifier } from '../llm/IntentClassifier';
+import { ActionExecutor } from '../actions/ActionExecutor';
 import { TextInserter } from '../output/TextInserter';
 import { getConfig } from '../config/Settings';
 
@@ -17,6 +19,8 @@ export class AudioPanel {
   private readonly whisperEngine: WhisperEngine;
   private readonly modelManager: ModelManager;
   private readonly copilotRefiner: CopilotRefiner;
+  private readonly intentClassifier: IntentClassifier;
+  private readonly actionExecutor: ActionExecutor;
   private readonly textInserter: TextInserter;
   private timerInterval: ReturnType<typeof setInterval> | null = null;
   private disposables: vscode.Disposable[] = [];
@@ -68,6 +72,8 @@ export class AudioPanel {
     this.whisperEngine = whisperEngine;
     this.modelManager = modelManager;
     this.copilotRefiner = copilotRefiner;
+    this.intentClassifier = new IntentClassifier();
+    this.actionExecutor = new ActionExecutor();
     this.textInserter = textInserter;
 
     this.panel.webview.html = this.getHtml();
@@ -184,8 +190,30 @@ export class AudioPanel {
         refining: config.refinementEnabled,
       });
 
-      // Refine with Copilot
-      if (config.refinementEnabled) {
+      if (config.actionMode === 'actions' && config.actionsEnabled) {
+        // Actions mode: classify intent
+        try {
+          const result = await this.intentClassifier.classify(rawText, config.language);
+          if (result.intent === 'dictation') {
+            this.panel.webview.postMessage({ type: 'refined', text: result.refinedText ?? rawText });
+          } else if (result.intent === 'action' && result.action) {
+            const action = result.action;
+            if (config.actionAutoExecuteSafe && action.risk === 'safe') {
+              const { success, message } = await this.actionExecutor.execute(action);
+              this.panel.webview.postMessage({ type: 'actionResult', success, message, action });
+            } else {
+              this.panel.webview.postMessage({ type: 'showAction', action });
+            }
+          }
+        } catch (err: unknown) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          this.panel.webview.postMessage({ type: 'refined', text: rawText });
+          vscode.window.showWarningMessage(
+            `SunYapper: Classification failed (${errMsg}). Using raw transcription.`
+          );
+        }
+      } else if (config.refinementEnabled) {
+        // Dictation mode: refine with Copilot
         try {
           const refined = await this.copilotRefiner.refine(rawText, config.language);
           this.panel.webview.postMessage({ type: 'refined', text: refined });
@@ -207,7 +235,7 @@ export class AudioPanel {
     }
   }
 
-  private async handleMessage(msg: { type: string; text?: string; message?: string; key?: string; value?: string }) {
+  private async handleMessage(msg: { type: string; text?: string; message?: string; key?: string; value?: string; action?: { kind: 'terminal_run' | 'vscode_command' | 'search' | 'open_file' | 'git'; command: string; description: string; risk: 'safe' | 'destructive' } }) {
     switch (msg.type) {
       case 'record':
         this.startRecording();
@@ -219,10 +247,19 @@ export class AudioPanel {
         await this.textInserter.insert(msg.text!);
         break;
       case 'settingChanged':
-        if (msg.key && msg.value) {
+        if (msg.key && msg.value !== undefined) {
           await vscode.workspace.getConfiguration('sunyapper')
             .update(msg.key, msg.value, vscode.ConfigurationTarget.Global);
         }
+        break;
+      case 'executeAction':
+        if (msg.action) {
+          const { success, message } = await this.actionExecutor.execute(msg.action);
+          this.panel.webview.postMessage({ type: 'actionResult', success, message, action: msg.action });
+        }
+        break;
+      case 'cancelAction':
+        this.panel.webview.postMessage({ type: 'setState', state: 'idle' });
         break;
       case 'error':
         vscode.window.showErrorMessage(`SunYapper: ${msg.message}`);
@@ -277,9 +314,10 @@ export class AudioPanel {
       </div>
       <div class="column refined">
         <div class="column-header">
-          <span class="column-label">Refined Output</span>
+          <span class="column-label" id="output-label">Refined Output</span>
         </div>
         <div class="column-body" id="refined-text" data-placeholder="Structured text will appear here."></div>
+        <div class="action-card" id="action-card" style="display:none;"></div>
       </div>
     </div>
 
@@ -307,6 +345,13 @@ export class AudioPanel {
           <option value="tiny">tiny</option>
           <option value="base" selected>base</option>
           <option value="small">small</option>
+        </select>
+      </label>
+      <label class="setting mode-toggle">
+        <span>Mode</span>
+        <select id="sel-mode">
+          <option value="dictation">Dictation</option>
+          <option value="actions">Actions</option>
         </select>
       </label>
       <span class="hint"><kbd>Cmd/Ctrl+Shift+Y</kbd></span>

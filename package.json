@@ -89,6 +89,29 @@
             "Replace current selection"
           ],
           "description": "How to insert refined text into the editor"
+        },
+        "sunyapper.actionsEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable voice-triggered actions (terminal commands, VS Code commands, etc.)"
+        },
+        "sunyapper.actionAutoExecuteSafe": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically execute actions classified as safe without confirmation"
+        },
+        "sunyapper.actionMode": {
+          "type": "string",
+          "default": "dictation",
+          "enum": [
+            "dictation",
+            "actions"
+          ],
+          "enumDescriptions": [
+            "Dictation mode: transcribe and refine speech into text",
+            "Actions mode: interpret speech as VS Code or terminal commands"
+          ],
+          "description": "Voice input mode — dictation or actions"
         }
       }
     }
