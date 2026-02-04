@@ -2,10 +2,10 @@
 src/**
 scripts/**
 node_modules/**
-!node_modules/ws/**
 desktop/**
 .gitignore
 .claude/**
 tsconfig.json
 **/*.ts
 **/*.map
+out/**/*.map

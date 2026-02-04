@@ -16,7 +16,9 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": ["onStartupFinished"],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -117,8 +119,9 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run download-binaries && npm run compile",
+    "vscode:prepublish": "npm run download-binaries && npm run bundle",
     "compile": "tsc -p ./",
+    "bundle": "node -e \"require('fs').rmSync('out',{recursive:true,force:true})\" && esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node",
     "watch": "tsc -watch -p ./",
     "package": "vsce package",
     "package:all": "vsce package --target darwin-arm64 && vsce package --target darwin-x64 && vsce package --target win32-x64 && vsce package --target linux-x64",
@@ -130,6 +133,7 @@
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.95.0",
     "@types/ws": "^8.18.1",
+    "esbuild": "^0.27.4",
     "typescript": "^5.5.0"
   },
   "dependencies": {
