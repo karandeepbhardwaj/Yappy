@@ -43,6 +43,7 @@ export class CopilotRefiner {
       vscode.LanguageModelChatMessage.User(rawText),
     ];
 
+    // Use the provided token, or create a standalone source as a fallback (never cancelled externally).
     const token = cancellationToken ?? new vscode.CancellationTokenSource().token;
     const response = await model.sendRequest(messages, {}, token);
 
