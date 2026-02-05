@@ -2,59 +2,68 @@
 
 Offline voice-to-text dictation for VS Code with Copilot LLM refinement. Free, secure, and enterprise-friendly.
 
-**Speak naturally, get polished text** — no cloud STT, no API keys, no subscriptions, no external tools.
+**Speak naturally, get polished text** — no cloud STT, no API keys, no subscriptions.
+
+## For Users (Install the VSIX)
+
+If someone has already built the VSIX for you:
+
+```bash
+code --install-extension sunyapper-0.1.0.vsix
+```
+
+Then in VS Code:
+1. Open the Command Palette (`Cmd+Shift+P`) and run **SunYapper: Download Whisper Model**
+2. Select **base** (~142MB, downloaded once)
+3. Press `Cmd+Shift+Y` (Mac) or `Ctrl+Shift+Y` (Windows)
+4. Click the record button and speak
+5. Click **Insert at cursor** to place the refined text in your editor
+
+That's it. No brew, no pip, no PATH configuration. Everything is bundled.
+
+## For Builders (Build from Source)
+
+You need Homebrew on macOS (or equivalent on other platforms) to compile the VSIX:
+
+```bash
+# 1. Install build dependencies (one-time)
+brew install sox whisper-cpp
+
+# 2. Clone and build
+git clone https://github.com/karandeepbhardwaj/SunYapper.git
+cd SunYapper
+npm install       # bundles sox + whisper-cli binaries from your system
+npm run compile
+
+# 3. Package as VSIX
+npm run package   # creates sunyapper-0.1.0.vsix
+```
+
+The VSIX is self-contained (~3MB of binaries + extension code). Share it with your team via Slack, email, or an internal repo. Recipients don't need brew or any tools installed.
+
+### Development
+
+```bash
+# Open in VS Code and press F5 to launch Extension Development Host
+code .
+```
 
 ## How It Works
 
-1. Press `Cmd+Shift+Y` (Mac) or `Ctrl+Shift+Y` (Windows) to open the dictation panel
-2. Click **Record** and speak naturally
-3. Click **Stop** — your speech is transcribed locally using whisper.cpp WASM
-4. Copilot refines the text (removes filler words, fixes grammar)
-5. Click **Insert Text** to place it at your cursor
+1. Press `Cmd+Shift+Y` to open the SunYapper panel
+2. Click the record button — speaks are captured via the bundled `sox` binary
+3. Click stop — audio is transcribed locally by the bundled `whisper-cli`
+4. If Copilot is available, the text is refined (filler words removed, grammar fixed)
+5. Click **Insert at cursor** to place the text in your editor
 
-Speech-to-text runs **entirely on your machine** via WebAssembly. Text refinement uses your existing Copilot enterprise plan — no extra cost or API keys.
-
-## Requirements
-
-- VS Code 1.95+
-- GitHub Copilot extension (signed in with enterprise or individual plan)
-- Node.js 18+ (for building from source)
-
-**sox and whisper-cli are bundled automatically** — no manual installation needed. The build script copies them from your system (Homebrew on macOS) and bundles them with the extension.
-
-## Quick Start
-
-```bash
-# One-time: install sox and whisper-cpp (needed to bundle binaries)
-brew install sox whisper-cpp    # macOS
-
-git clone https://github.com/karandeepbhardwaj/SunYapper.git
-cd SunYapper
-npm install          # installs deps + bundles sox & whisper-cli binaries
-npm run compile
-```
-
-After building, the extension is fully self-contained — no system dependencies needed at runtime.
-
-Then in VS Code:
-1. Open the `SunYapper` folder
-2. Press `F5` to launch the Extension Development Host
-3. Run **SunYapper: Download Whisper Model** from the Command Palette
-4. Press `Cmd+Shift+Y` to start dictating
-
-### Install as VSIX (for enterprise machines)
-
-```bash
-npm run package
-code --install-extension sunyapper-0.1.0.vsix
-```
+Speech-to-text is **fully offline**. Text refinement uses your existing Copilot plan — no extra cost or API keys.
 
 ## Settings
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `sunyapper.whisperModel` | `base` | Whisper model size: tiny, base, or small |
-| `sunyapper.language` | `en` | Language code for speech recognition |
+| `sunyapper.whisperModel` | `base` | Whisper model size: tiny (~75MB), base (~142MB), or small (~466MB) |
+| `sunyapper.language` | `en` | Language code for recognition (en, es, fr, hi, etc.) |
 | `sunyapper.refinementEnabled` | `true` | Enable Copilot LLM text refinement |
 | `sunyapper.copilotModelFamily` | `gpt-4o` | Copilot model family for refinement |
 | `sunyapper.insertMode` | `cursor` | Insert at cursor or replace selection |
@@ -62,31 +71,32 @@ code --install-extension sunyapper-0.1.0.vsix
 ## Architecture
 
 ```
-WebView (browser context):
-  getUserMedia() → ScriptProcessorNode (PCM 16kHz mono)
-  → whisper.cpp WASM (local STT, fully offline)
-  → postMessage to extension host
-
 Extension Host (Node.js):
-  → Copilot LLM refinement (vscode.lm API)
-  → Insert refined text at editor cursor
+  bundled rec (sox)    → captures mic → WAV file
+  bundled whisper-cli  → transcribes WAV → raw text
+  Copilot LLM          → refines text
+  → inserts at editor cursor
+
+WebView (display only):
+  Record button, waveform, timer, transcription cards
 ```
 
-- **Audio capture**: Bundled `sox`/`rec` binary — runs as a child process, no system install needed
-- **Speech-to-text**: Bundled `whisper-cli` binary — fully offline, no system install needed
+- **Audio capture**: Bundled `sox`/`rec` binary (~500KB)
+- **Speech-to-text**: Bundled `whisper-cli` + dylibs (~2.5MB) — fully offline
 - **Text refinement**: VS Code Language Model API — uses your existing Copilot access
-- **Self-contained**: Binaries are bundled inside the extension (~3MB for macOS arm64)
-- **Zero data leakage**: Audio never leaves your machine. Only refined text prompts go through Copilot's approved channel.
+- **Binary resolution**: Checks `bin/<platform>/` first, falls back to system PATH
+- **Zero data leakage**: Audio never leaves your machine
 
 ## Enterprise Use
 
-SunYapper is designed for restricted enterprise environments:
+SunYapper is designed for locked-down enterprise environments:
 
-- **Zero runtime dependencies** — sox and whisper-cli are bundled inside the extension
-- No CLI tools need to be on PATH — everything ships in the VSIX
-- LLM refinement goes through Copilot, which your enterprise already approved
-- Clone the repo, build, and install as a VSIX — no marketplace needed
-- MIT licensed, fully open source
+- **Zero runtime dependencies** — sox and whisper-cli are bundled inside the VSIX
+- **No PATH configuration** — binaries ship inside the extension
+- **No marketplace needed** — share the VSIX file directly
+- **Copilot-approved channel** — LLM refinement uses your enterprise Copilot plan
+- **Fully offline STT** — only the one-time model download needs internet
+- **MIT licensed** — fully open source, auditable
 
 ## Roadmap
 
