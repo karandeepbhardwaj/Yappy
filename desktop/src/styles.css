@@ -56,16 +56,17 @@ body {
   overflow: hidden;
 }
 
-/* ── Titlebar ── */
+/* ── Titlebar / Drag region ── */
 .titlebar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 12px;
-  height: 40px;
+  padding: 0 16px;
+  height: 44px;
   -webkit-app-region: drag;
   user-select: none;
   flex-shrink: 0;
+  cursor: grab;
 }
 
 .titlebar-left {
@@ -77,9 +78,9 @@ body {
 }
 
 .titlebar-logo {
-  width: 22px;
-  height: 22px;
-  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  pointer-events: none;
 }
 
 .titlebar h1 {

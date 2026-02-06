@@ -122,10 +122,9 @@ function App() {
 
   return (
     <div className="app">
-      <div className="titlebar">
+      <div className="titlebar" data-tauri-drag-region>
         <div className="titlebar-left">
           <img src={logoSvg} alt="SunYapper" className="titlebar-logo" />
-          <h1>SunYapper</h1>
         </div>
         <div className="titlebar-right">
           <div className="connection-indicator">
