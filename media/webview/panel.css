@@ -1,0 +1,123 @@
+:root {
+  --bg: var(--vscode-editor-background);
+  --fg: var(--vscode-editor-foreground);
+  --accent: var(--vscode-button-background);
+  --accent-hover: var(--vscode-button-hoverBackground);
+  --border: var(--vscode-panel-border);
+  --muted: var(--vscode-descriptionForeground);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  color: var(--fg);
+  background: var(--bg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100vh;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header h2 { font-size: 1.1em; font-weight: 600; }
+
+.status-badge {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.8em;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-idle { background: var(--border); color: var(--muted); }
+.status-recording { background: #c0392b; color: #fff; animation: pulse 1.2s infinite; }
+.status-processing { background: #f39c12; color: #fff; }
+.status-done { background: #27ae60; color: #fff; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.waveform-container {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  background: rgba(0,0,0,0.1);
+}
+
+canvas {
+  width: 100%;
+  height: 80px;
+  display: block;
+}
+
+.timer {
+  text-align: center;
+  font-size: 1.8em;
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.timer.active { color: #c0392b; }
+
+.controls {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.btn {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+  font-family: inherit;
+  background: var(--accent);
+  color: var(--vscode-button-foreground);
+  transition: background 0.15s;
+}
+
+.btn:hover { background: var(--accent-hover); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-danger { background: #c0392b; }
+.btn-danger:hover { background: #e74c3c; }
+
+.output-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.output-label {
+  font-size: 0.8em;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+}
+
+.output-text {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: rgba(0,0,0,0.05);
+  overflow-y: auto;
+  white-space: pre-wrap;
+  font-size: 0.95em;
+  line-height: 1.5;
+  min-height: 60px;
+}

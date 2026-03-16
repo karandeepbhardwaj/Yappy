@@ -1,0 +1,106 @@
+{
+  "name": "sunyapper",
+  "displayName": "SunYapper",
+  "description": "Offline voice-to-text dictation with Copilot LLM refinement. Free, secure, enterprise-friendly.",
+  "version": "0.1.0",
+  "publisher": "kdb",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "sunyapper.toggleDictation",
+        "title": "SunYapper: Toggle Dictation"
+      },
+      {
+        "command": "sunyapper.openPanel",
+        "title": "SunYapper: Open Panel"
+      },
+      {
+        "command": "sunyapper.downloadModel",
+        "title": "SunYapper: Download Whisper Model"
+      },
+      {
+        "command": "sunyapper.selectModel",
+        "title": "SunYapper: Select Whisper Model"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "sunyapper.toggleDictation",
+        "key": "ctrl+shift+y",
+        "mac": "cmd+shift+y"
+      }
+    ],
+    "configuration": {
+      "title": "SunYapper",
+      "properties": {
+        "sunyapper.whisperModel": {
+          "type": "string",
+          "default": "base",
+          "enum": [
+            "tiny",
+            "base",
+            "small"
+          ],
+          "enumDescriptions": [
+            "Tiny (~75MB) - Fastest, lower accuracy",
+            "Base (~142MB) - Good balance of speed and accuracy",
+            "Small (~466MB) - Best accuracy, slower"
+          ],
+          "description": "Whisper model size for speech-to-text"
+        },
+        "sunyapper.language": {
+          "type": "string",
+          "default": "en",
+          "description": "Language code for speech recognition (e.g., en, es, fr, hi)"
+        },
+        "sunyapper.refinementEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Copilot LLM text refinement after transcription"
+        },
+        "sunyapper.copilotModelFamily": {
+          "type": "string",
+          "default": "gpt-4o",
+          "description": "Copilot model family to use for text refinement"
+        },
+        "sunyapper.insertMode": {
+          "type": "string",
+          "default": "cursor",
+          "enum": [
+            "cursor",
+            "replace"
+          ],
+          "enumDescriptions": [
+            "Insert at current cursor position",
+            "Replace current selection"
+          ],
+          "description": "How to insert refined text into the editor"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.95.0",
+    "typescript": "^5.5.0"
+  },
+  "dependencies": {
+    "@kutalia/whisper-node-addon": "^1.1.0",
+    "naudiodon": "^2.3.6"
+  }
+}
