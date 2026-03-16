@@ -19,12 +19,16 @@ Speech-to-text runs **entirely on your machine**. Text refinement uses your exis
 - VS Code 1.95+
 - GitHub Copilot extension (signed in with enterprise or individual plan)
 - Node.js 18+ (for building from source)
-- ffmpeg (optional, improves audio conversion quality)
+- sox (audio recording): `brew install sox` (macOS) or `choco install sox` (Windows)
 
 ## Quick Start
 
 ```bash
-git clone https://github.com/your-username/sunyapper.git
+# Install sox first
+brew install sox        # macOS
+# choco install sox     # Windows
+
+git clone https://github.com/karandeepbhardwaj/SunYapper.git
 cd sunyapper
 npm install
 npm run compile
@@ -62,7 +66,7 @@ Microphone → WebView (Web Audio API)
     → Insert at editor cursor
 ```
 
-- **Audio capture**: WebView with Web Audio API — no native mic dependencies
+- **Audio capture**: sox/rec via child process — reliable cross-platform mic access
 - **Speech-to-text**: whisper.cpp via @kutalia/whisper-node-addon — fully offline
 - **Text refinement**: VS Code Language Model API — uses your existing Copilot access
 - **Zero data leakage**: Audio never leaves your machine. Only refined text prompts go through Copilot's approved channel.

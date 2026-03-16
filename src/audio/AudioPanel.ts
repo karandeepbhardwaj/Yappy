@@ -107,7 +107,7 @@ export class AudioPanel {
       this.levelInterval = null;
     }
 
-    const wavPath = this.audioRecorder.stop();
+    const wavPath = await this.audioRecorder.stop();
     if (!wavPath) {
       this.panel.webview.postMessage({ type: 'setState', state: 'idle' });
       return;
@@ -239,7 +239,7 @@ export class AudioPanel {
       clearInterval(this.levelInterval);
     }
     if (this.audioRecorder.isRecording()) {
-      this.audioRecorder.stop();
+      this.audioRecorder.stop().catch(() => { /* ignore on dispose */ });
     }
     AudioPanel.currentPanel = undefined;
     this.panel.dispose();
