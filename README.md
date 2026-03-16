@@ -2,41 +2,37 @@
 
 Offline voice-to-text dictation for VS Code with Copilot LLM refinement. Free, secure, and enterprise-friendly.
 
-**Speak naturally, get polished text** — no cloud STT, no API keys, no subscriptions.
+**Speak naturally, get polished text** — no cloud STT, no API keys, no subscriptions, no external tools.
 
 ## How It Works
 
 1. Press `Cmd+Shift+Y` (Mac) or `Ctrl+Shift+Y` (Windows) to open the dictation panel
 2. Click **Record** and speak naturally
-3. Click **Stop** — your speech is transcribed locally using whisper.cpp
+3. Click **Stop** — your speech is transcribed locally using whisper.cpp WASM
 4. Copilot refines the text (removes filler words, fixes grammar)
 5. Click **Insert Text** to place it at your cursor
 
-Speech-to-text runs **entirely on your machine**. Text refinement uses your existing Copilot enterprise plan — no extra cost or API keys.
+Speech-to-text runs **entirely on your machine** via WebAssembly. Text refinement uses your existing Copilot enterprise plan — no extra cost or API keys.
 
 ## Requirements
 
 - VS Code 1.95+
 - GitHub Copilot extension (signed in with enterprise or individual plan)
 - Node.js 18+ (for building from source)
-- sox (audio recording): `brew install sox` (macOS) or `choco install sox` (Windows)
-- whisper.cpp (speech-to-text): `brew install whisper-cpp` (macOS) or [build from source](https://github.com/ggerganov/whisper.cpp)
+
+No external tools (sox, ffmpeg, whisper-cli) required.
 
 ## Quick Start
 
 ```bash
-# Install dependencies first
-brew install sox whisper-cpp   # macOS
-# choco install sox            # Windows (+ build whisper.cpp from source)
-
 git clone https://github.com/karandeepbhardwaj/SunYapper.git
-cd sunyapper
-npm install
+cd SunYapper
+npm install          # installs deps + downloads whisper WASM artifacts
 npm run compile
 ```
 
 Then in VS Code:
-1. Open the `sunyapper` folder
+1. Open the `SunYapper` folder
 2. Press `F5` to launch the Extension Development Host
 3. Run **SunYapper: Download Whisper Model** from the Command Palette
 4. Press `Cmd+Shift+Y` to start dictating
@@ -61,14 +57,18 @@ code --install-extension sunyapper-0.1.0.vsix
 ## Architecture
 
 ```
-Microphone → WebView (Web Audio API)
-    → whisper.cpp (local STT, offline)
-    → Copilot LLM (text refinement via vscode.lm API)
-    → Insert at editor cursor
+WebView (browser context):
+  getUserMedia() → ScriptProcessorNode (PCM 16kHz mono)
+  → whisper.cpp WASM (local STT, fully offline)
+  → postMessage to extension host
+
+Extension Host (Node.js):
+  → Copilot LLM refinement (vscode.lm API)
+  → Insert refined text at editor cursor
 ```
 
-- **Audio capture**: sox/rec via child process — reliable cross-platform mic access
-- **Speech-to-text**: whisper-cli (whisper.cpp) via child process — fully offline
+- **Audio capture**: Web Audio API (`getUserMedia` + `ScriptProcessorNode`) — runs in the WebView, no native dependencies
+- **Speech-to-text**: whisper.cpp compiled to WebAssembly — runs in the WebView, fully offline
 - **Text refinement**: VS Code Language Model API — uses your existing Copilot access
 - **Zero data leakage**: Audio never leaves your machine. Only refined text prompts go through Copilot's approved channel.
 
@@ -76,8 +76,8 @@ Microphone → WebView (Web Audio API)
 
 SunYapper is designed for restricted enterprise environments:
 
-- No software to install beyond VS Code (it's just an extension)
-- STT is completely offline — no internet needed
+- **Zero external dependencies** — no sox, ffmpeg, whisper-cli, or native addons to install
+- STT runs as WebAssembly inside VS Code — no CLI tools on PATH required
 - LLM refinement goes through Copilot, which your enterprise already approved
 - Clone the repo, build, and install as a VSIX — no marketplace needed
 - MIT licensed, fully open source

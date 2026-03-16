@@ -89,10 +89,12 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run download-wasm && npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "package": "vsce package"
+    "package": "vsce package",
+    "download-wasm": "node scripts/download-wasm.js",
+    "postinstall": "node scripts/download-wasm.js"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

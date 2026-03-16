@@ -1,5 +1,6 @@
 out/
 node_modules/
 models/*.bin
+media/wasm/
 *.vsix
 .vscode-test/

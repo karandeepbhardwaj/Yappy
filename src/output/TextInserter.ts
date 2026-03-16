@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { getConfig } from '../config/Settings';
 
 export class TextInserter {
+  /** Inserts or replaces text in the active editor. Returns true if the edit was successfully applied, false if there was no active editor. */
   async insert(text: string): Promise<boolean> {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {

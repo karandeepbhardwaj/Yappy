@@ -16,7 +16,7 @@ const MODEL_SIZES: Record<string, string> = {
 };
 
 export class ModelManager {
-  private modelsDir: string;
+  public readonly modelsDir: string;
 
   constructor(globalStoragePath: string) {
     this.modelsDir = path.join(globalStoragePath, 'models');
