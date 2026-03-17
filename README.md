@@ -18,7 +18,7 @@
 ---
 
 <p align="center">
-  <img src="docs/Yapper.png" width="700" alt="Yapper — Idle">
+  <img src="docs/yapper.png" width="700" alt="Yapper — Idle">
 </p>
 
 ---
