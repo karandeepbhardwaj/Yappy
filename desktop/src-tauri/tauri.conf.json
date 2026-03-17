@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "SunYapper",
+  "productName": "yapper",
   "version": "0.2.0",
-  "identifier": "com.kdb.sunyapper",
+  "identifier": "com.kdb.yapper",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "macOSPrivateApi": true,
     "windows": [
       {
-        "title": "SunYapper",
+        "title": "yapper",
         "width": 960,
         "height": 680,
         "minWidth": 760,

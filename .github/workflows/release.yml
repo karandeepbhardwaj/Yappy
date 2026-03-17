@@ -62,7 +62,7 @@ jobs:
           projectPath: desktop
           args: ${{ matrix.args }}
           tagName: ${{ github.ref_name }}
-          releaseName: SunYapper ${{ github.ref_name }}
+          releaseName: yapper ${{ github.ref_name }}
           releaseBody: |
             ## Downloads
 
@@ -72,7 +72,7 @@ jobs:
             | `-setup.exe` | Windows (x64) |
             | `.vsix` | VS Code Extension |
 
-            See [README](https://github.com/karandeepbhardwaj/SunYapper#readme) for setup instructions.
+            See [README](https://github.com/karandeepbhardwaj/yapper#readme) for setup instructions.
           releaseDraft: false
           prerelease: false
 
@@ -98,11 +98,11 @@ jobs:
         run: npx tsc -p ./tsconfig.json
 
       - name: Package .vsix
-        run: npx @vscode/vsce package --no-dependencies -o sunyapper-${{ github.ref_name }}.vsix
+        run: npx @vscode/vsce package --no-dependencies -o yapper-${{ github.ref_name }}.vsix
 
       - name: Upload .vsix to release
         uses: softprops/action-gh-release@v2
         with:
-          files: sunyapper-${{ github.ref_name }}.vsix
+          files: yapper-${{ github.ref_name }}.vsix
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

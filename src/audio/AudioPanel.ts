@@ -11,7 +11,7 @@ import { getConfig } from '../config/Settings';
 
 export class AudioPanel {
   public static currentPanel: AudioPanel | undefined;
-  private static readonly viewType = 'sunyapper.panel';
+  private static readonly viewType = 'yapper.panel';
 
   private readonly panel: vscode.WebviewPanel;
   private readonly extensionUri: vscode.Uri;
@@ -42,7 +42,7 @@ export class AudioPanel {
 
     const panel = vscode.window.createWebviewPanel(
       AudioPanel.viewType,
-      'SunYapper',
+      'yapper',
       column,
       {
         enableScripts: true,
@@ -108,7 +108,7 @@ export class AudioPanel {
       }, 80);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      vscode.window.showErrorMessage(`SunYapper: Failed to start recording — ${msg}`);
+      vscode.window.showErrorMessage(`yapper: Failed to start recording — ${msg}`);
       this.panel.webview.postMessage({ type: 'setState', state: 'idle' });
     }
   }
@@ -126,7 +126,7 @@ export class AudioPanel {
       wavPath = await this.audioRecorder.stop();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      vscode.window.showErrorMessage(`SunYapper: ${msg}`);
+      vscode.window.showErrorMessage(`yapper: ${msg}`);
       this.panel.webview.postMessage({ type: 'setState', state: 'idle' });
       return;
     }
@@ -144,7 +144,7 @@ export class AudioPanel {
 
       if (!model) {
         const action = await vscode.window.showWarningMessage(
-          'SunYapper: No whisper model available. Download one now?',
+          'yapper: No whisper model available. Download one now?',
           'Download tiny (~75MB)', 'Download base (~142MB)'
         );
         if (action) {
@@ -168,7 +168,7 @@ export class AudioPanel {
 
       if (model !== config.whisperModel) {
         vscode.window.showInformationMessage(
-          `SunYapper: Using "${model}" model (configured "${config.whisperModel}" not available).`
+          `yapper: Using "${model}" model (configured "${config.whisperModel}" not available).`
         );
       }
 
@@ -219,7 +219,7 @@ export class AudioPanel {
           const errMsg = err instanceof Error ? err.message : String(err);
           this.panel.webview.postMessage({ type: 'refined', text: rawText });
           vscode.window.showWarningMessage(
-            `SunYapper: Classification failed (${errMsg}). Using raw transcription.`
+            `yapper: Classification failed (${errMsg}). Using raw transcription.`
           );
         }
       } else if (config.refinementEnabled) {
@@ -231,7 +231,7 @@ export class AudioPanel {
           const errMsg = err instanceof Error ? err.message : String(err);
           this.panel.webview.postMessage({ type: 'refined', text: rawText });
           vscode.window.showWarningMessage(
-            `SunYapper: Copilot refinement failed (${errMsg}). Using raw transcription.`
+            `yapper: Copilot refinement failed (${errMsg}). Using raw transcription.`
           );
         }
       }
@@ -258,7 +258,7 @@ export class AudioPanel {
         break;
       case 'settingChanged':
         if (msg.key && msg.value !== undefined) {
-          await vscode.workspace.getConfiguration('sunyapper')
+          await vscode.workspace.getConfiguration('yapper')
             .update(msg.key, msg.value, vscode.ConfigurationTarget.Global);
         }
         break;
@@ -272,7 +272,7 @@ export class AudioPanel {
         this.panel.webview.postMessage({ type: 'setState', state: 'idle' });
         break;
       case 'error':
-        vscode.window.showErrorMessage(`SunYapper: ${msg.message}`);
+        vscode.window.showErrorMessage(`yapper: ${msg.message}`);
         break;
     }
   }
@@ -295,7 +295,7 @@ export class AudioPanel {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
   <link rel="stylesheet" href="${cssUri}">
-  <title>SunYapper</title>
+  <title>yapper</title>
 </head>
 <body>
   <div class="app-layout">

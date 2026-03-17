@@ -6,7 +6,7 @@ export class TextInserter {
   async insert(text: string): Promise<boolean> {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
-      vscode.window.showWarningMessage('SunYapper: No active editor to insert text into.');
+      vscode.window.showWarningMessage('yapper: No active editor to insert text into.');
       return false;
     }
 

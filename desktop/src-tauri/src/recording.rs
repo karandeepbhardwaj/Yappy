@@ -22,7 +22,7 @@ fn build_args(wav_path: &str) -> Vec<String> {
 
 fn segment_path(counter: u32) -> String {
     std::env::temp_dir()
-        .join(format!("sunyapper_{}_{}.wav", std::process::id(), counter))
+        .join(format!("yapper_{}_{}.wav", std::process::id(), counter))
         .to_string_lossy()
         .to_string()
 }
@@ -120,7 +120,7 @@ fn stop_process(child: &mut Child) {
 /// Clean up all temp segment files
 pub fn cleanup_segments() {
     let tmp = std::env::temp_dir();
-    let prefix = format!("sunyapper_{}_", std::process::id());
+    let prefix = format!("yapper_{}_", std::process::id());
     if let Ok(entries) = std::fs::read_dir(&tmp) {
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().to_string();

@@ -23,7 +23,7 @@ export class AudioRecorder {
     if (this._isRecording) return;
 
     this.errorMessage = null;
-    this.outputPath = path.join(os.tmpdir(), `sunyapper_${Date.now()}.wav`);
+    this.outputPath = path.join(os.tmpdir(), `yapper_${Date.now()}.wav`);
 
     const isWin = process.platform === 'win32';
     const cmd = getBinaryPath(isWin ? 'sox' : 'rec', this.extensionPath);

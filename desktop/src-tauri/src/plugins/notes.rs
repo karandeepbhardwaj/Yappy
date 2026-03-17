@@ -58,7 +58,7 @@ fn create_note(text: &str) -> ActionResult {
     }
     #[cfg(target_os = "windows")]
     {
-        let tmp = std::env::temp_dir().join("sunyapper_note.txt");
+        let tmp = std::env::temp_dir().join("yapper_note.txt");
         if std::fs::write(&tmp, text).is_ok() {
             match Command::new("notepad.exe").arg(&tmp).spawn() {
                 Ok(_) => ActionResult { success: true, message: "Opened in Notepad".into() },

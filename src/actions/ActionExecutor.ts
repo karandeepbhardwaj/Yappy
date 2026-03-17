@@ -14,21 +14,21 @@ function checkDenyList(command: string): boolean {
   return DENY_PATTERNS.some((pattern) => lower.includes(pattern));
 }
 
-let sunyapperTerminal: vscode.Terminal | undefined;
+let yapperTerminal: vscode.Terminal | undefined;
 
 function getTerminal(): vscode.Terminal {
   // Reuse if still alive
-  if (sunyapperTerminal && sunyapperTerminal.exitStatus === undefined) {
-    return sunyapperTerminal;
+  if (yapperTerminal && yapperTerminal.exitStatus === undefined) {
+    return yapperTerminal;
   }
   // Check among open terminals
-  const existing = vscode.window.terminals.find((t) => t.name === 'SunYapper');
+  const existing = vscode.window.terminals.find((t) => t.name === 'yapper');
   if (existing) {
-    sunyapperTerminal = existing;
+    yapperTerminal = existing;
     return existing;
   }
-  sunyapperTerminal = vscode.window.createTerminal('SunYapper');
-  return sunyapperTerminal;
+  yapperTerminal = vscode.window.createTerminal('yapper');
+  return yapperTerminal;
 }
 
 export class ActionExecutor {

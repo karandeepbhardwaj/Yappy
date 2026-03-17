@@ -1,13 +1,13 @@
 {
-  "name": "sunyapper",
-  "displayName": "SunYapper",
+  "name": "yapper",
+  "displayName": "yapper",
   "description": "Offline voice-to-text dictation with Copilot LLM refinement. Free, secure, enterprise-friendly.",
   "version": "0.2.1",
   "publisher": "kdb",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/karandeepbhardwaj/SunYapper"
+    "url": "https://github.com/karandeepbhardwaj/yapper"
   },
   "icon": "icon.png",
   "engines": {
@@ -23,33 +23,33 @@
   "contributes": {
     "commands": [
       {
-        "command": "sunyapper.toggleDictation",
-        "title": "SunYapper: Toggle Dictation"
+        "command": "yapper.toggleDictation",
+        "title": "yapper: Toggle Dictation"
       },
       {
-        "command": "sunyapper.openPanel",
-        "title": "SunYapper: Open Panel"
+        "command": "yapper.openPanel",
+        "title": "yapper: Open Panel"
       },
       {
-        "command": "sunyapper.downloadModel",
-        "title": "SunYapper: Download Whisper Model"
+        "command": "yapper.downloadModel",
+        "title": "yapper: Download Whisper Model"
       },
       {
-        "command": "sunyapper.selectModel",
-        "title": "SunYapper: Select Whisper Model"
+        "command": "yapper.selectModel",
+        "title": "yapper: Select Whisper Model"
       }
     ],
     "keybindings": [
       {
-        "command": "sunyapper.toggleDictation",
+        "command": "yapper.toggleDictation",
         "key": "ctrl+shift+y",
         "mac": "cmd+shift+y"
       }
     ],
     "configuration": {
-      "title": "SunYapper",
+      "title": "yapper",
       "properties": {
-        "sunyapper.whisperModel": {
+        "yapper.whisperModel": {
           "type": "string",
           "default": "base",
           "enum": [
@@ -64,22 +64,22 @@
           ],
           "description": "Whisper model size for speech-to-text"
         },
-        "sunyapper.language": {
+        "yapper.language": {
           "type": "string",
           "default": "en",
           "description": "Language code for speech recognition (e.g., en, es, fr, hi)"
         },
-        "sunyapper.refinementEnabled": {
+        "yapper.refinementEnabled": {
           "type": "boolean",
           "default": true,
           "description": "Enable Copilot LLM text refinement after transcription"
         },
-        "sunyapper.copilotModelFamily": {
+        "yapper.copilotModelFamily": {
           "type": "string",
           "default": "gpt-4o",
           "description": "Copilot model family to use for text refinement"
         },
-        "sunyapper.insertMode": {
+        "yapper.insertMode": {
           "type": "string",
           "default": "cursor",
           "enum": [
@@ -92,17 +92,17 @@
           ],
           "description": "How to insert refined text into the editor"
         },
-        "sunyapper.actionsEnabled": {
+        "yapper.actionsEnabled": {
           "type": "boolean",
           "default": true,
           "description": "Enable voice-triggered actions (terminal commands, VS Code commands, etc.)"
         },
-        "sunyapper.actionAutoExecuteSafe": {
+        "yapper.actionAutoExecuteSafe": {
           "type": "boolean",
           "default": true,
           "description": "Automatically execute actions classified as safe without confirmation"
         },
-        "sunyapper.actionMode": {
+        "yapper.actionMode": {
           "type": "string",
           "default": "dictation",
           "enum": [

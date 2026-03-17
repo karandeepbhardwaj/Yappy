@@ -18,28 +18,28 @@ export function activate(context: vscode.ExtensionContext) {
   const copilotRefiner = new CopilotRefiner();
   const textInserter = new TextInserter();
 
-  // Start WebSocket bridge for SunYapper desktop app
+  // Start WebSocket bridge for yapper desktop app
   try {
     const bridge = new CopilotBridge(copilotRefiner);
     context.subscriptions.push(bridge.start());
-    console.log('SunYapper: WebSocket bridge started on port 19542');
+    console.log('yapper: WebSocket bridge started on port 19542');
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error('SunYapper: Failed to start WebSocket bridge:', msg);
-    vscode.window.showWarningMessage(`SunYapper Bridge failed: ${msg}`);
+    console.error('yapper: Failed to start WebSocket bridge:', msg);
+    vscode.window.showWarningMessage(`yapper Bridge failed: ${msg}`);
   }
 
   // Status bar
   statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-  statusBarItem.command = 'sunyapper.toggleDictation';
-  statusBarItem.text = '$(mic) SunYapper';
+  statusBarItem.command = 'yapper.toggleDictation';
+  statusBarItem.text = '$(mic) yapper';
   statusBarItem.tooltip = 'Click to toggle dictation (Cmd+Shift+Y)';
   statusBarItem.show();
   context.subscriptions.push(statusBarItem);
 
   // Toggle dictation command
   context.subscriptions.push(
-    vscode.commands.registerCommand('sunyapper.toggleDictation', () => {
+    vscode.commands.registerCommand('yapper.toggleDictation', () => {
       const panel = AudioPanel.createOrShow(
         context.extensionUri,
         audioRecorder,
@@ -54,7 +54,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Open panel command
   context.subscriptions.push(
-    vscode.commands.registerCommand('sunyapper.openPanel', () => {
+    vscode.commands.registerCommand('yapper.openPanel', () => {
       AudioPanel.createOrShow(
         context.extensionUri,
         audioRecorder,
@@ -68,7 +68,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Download model command
   context.subscriptions.push(
-    vscode.commands.registerCommand('sunyapper.downloadModel', async () => {
+    vscode.commands.registerCommand('yapper.downloadModel', async () => {
       const models = modelManager.getAvailableModels();
       const items = models.map((m) => ({
         label: m.name,
@@ -85,15 +85,15 @@ export function activate(context: vscode.ExtensionContext) {
         try {
           await modelManager.downloadModel(selected.label);
           vscode.window.showInformationMessage(
-            `SunYapper: ${selected.label} model downloaded successfully!`
+            `yapper: ${selected.label} model downloaded successfully!`
           );
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
-          vscode.window.showErrorMessage(`SunYapper: Download failed — ${msg}`);
+          vscode.window.showErrorMessage(`yapper: Download failed — ${msg}`);
         }
       } else if (selected && !selected.needsDownload) {
         vscode.window.showInformationMessage(
-          `SunYapper: ${selected.label} model is already available.`
+          `yapper: ${selected.label} model is already available.`
         );
       }
     })
@@ -101,17 +101,17 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Select model command
   context.subscriptions.push(
-    vscode.commands.registerCommand('sunyapper.selectModel', async () => {
+    vscode.commands.registerCommand('yapper.selectModel', async () => {
       const models = modelManager.getAvailableModels();
       const downloaded = models.filter((m) => m.downloaded);
 
       if (downloaded.length === 0) {
         const action = await vscode.window.showWarningMessage(
-          'SunYapper: No models downloaded yet.',
+          'yapper: No models downloaded yet.',
           'Download Model'
         );
         if (action === 'Download Model') {
-          vscode.commands.executeCommand('sunyapper.downloadModel');
+          vscode.commands.executeCommand('yapper.downloadModel');
         }
         return;
       }
@@ -123,10 +123,10 @@ export function activate(context: vscode.ExtensionContext) {
 
       if (selected) {
         await vscode.workspace
-          .getConfiguration('sunyapper')
+          .getConfiguration('yapper')
           .update('whisperModel', selected.label, vscode.ConfigurationTarget.Global);
         vscode.window.showInformationMessage(
-          `SunYapper: Now using ${selected.label} model.`
+          `yapper: Now using ${selected.label} model.`
         );
       }
     })
@@ -151,21 +151,21 @@ async function autoDownloadModel(
   try {
     await modelManager.downloadModel(model);
     vscode.window.showInformationMessage(
-      `SunYapper: ${model} model ready! Press Cmd+Shift+Y to start dictating.`
+      `yapper: ${model} model ready! Press Cmd+Shift+Y to start dictating.`
     );
   } catch {
     // Download failed (offline?) — show a one-time hint
-    const hasNotified = context.globalState.get<boolean>('sunyapper.downloadHintShown');
+    const hasNotified = context.globalState.get<boolean>('yapper.downloadHintShown');
     if (!hasNotified) {
       vscode.window.showWarningMessage(
-        'SunYapper: Could not auto-download the whisper model. Run "SunYapper: Download Whisper Model" when you have internet.',
+        'yapper: Could not auto-download the whisper model. Run "yapper: Download Whisper Model" when you have internet.',
         'Download Now'
       ).then(action => {
         if (action === 'Download Now') {
-          vscode.commands.executeCommand('sunyapper.downloadModel');
+          vscode.commands.executeCommand('yapper.downloadModel');
         }
       });
-      context.globalState.update('sunyapper.downloadHintShown', true);
+      context.globalState.update('yapper.downloadHintShown', true);
     }
   }
 }

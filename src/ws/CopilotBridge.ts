@@ -19,8 +19,8 @@ export class CopilotBridge {
     this.intentClassifier = new IntentClassifier();
     this.actionExecutor = new ActionExecutor();
     this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
-    this.statusBarItem.text = '$(radio-tower) SunYapper Bridge';
-    this.statusBarItem.tooltip = 'SunYapper desktop bridge (no connections)';
+    this.statusBarItem.text = '$(radio-tower) yapper Bridge';
+    this.statusBarItem.tooltip = 'yapper desktop bridge (no connections)';
     this.statusBarItem.show();
   }
 
@@ -28,7 +28,7 @@ export class CopilotBridge {
     this.server = new WebSocketServer({ port: PORT, host: '127.0.0.1' });
 
     this.server.on('listening', () => {
-      console.log(`SunYapper Bridge: listening on ws://127.0.0.1:${PORT}`);
+      console.log(`yapper Bridge: listening on ws://127.0.0.1:${PORT}`);
     });
 
     this.server.on('connection', (ws) => {
@@ -51,7 +51,7 @@ export class CopilotBridge {
     });
 
     this.server.on('error', (err) => {
-      vscode.window.showWarningMessage(`SunYapper Bridge: Failed to start on port ${PORT} — ${err.message}`);
+      vscode.window.showWarningMessage(`yapper Bridge: Failed to start on port ${PORT} — ${err.message}`);
     });
 
     return new vscode.Disposable(() => this.stop());
@@ -116,11 +116,11 @@ export class CopilotBridge {
   private updateStatus() {
     const count = this.clients.size;
     this.statusBarItem.text = count > 0
-      ? `$(radio-tower) SunYapper Bridge (${count})`
-      : '$(radio-tower) SunYapper Bridge';
+      ? `$(radio-tower) yapper Bridge (${count})`
+      : '$(radio-tower) yapper Bridge';
     this.statusBarItem.tooltip = count > 0
-      ? `SunYapper desktop: ${count} connection(s)`
-      : 'SunYapper desktop bridge (no connections)';
+      ? `yapper desktop: ${count} connection(s)`
+      : 'yapper desktop bridge (no connections)';
   }
 
   stop() {

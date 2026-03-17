@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-export interface SunYapperConfig {
+export interface yapperConfig {
   whisperModel: 'tiny' | 'base' | 'small';
   language: string;
   refinementEnabled: boolean;
@@ -11,8 +11,8 @@ export interface SunYapperConfig {
   actionMode: 'dictation' | 'actions';
 }
 
-export function getConfig(): SunYapperConfig {
-  const config = vscode.workspace.getConfiguration('sunyapper');
+export function getConfig(): yapperConfig {
+  const config = vscode.workspace.getConfiguration('yapper');
   return {
     whisperModel: config.get<'tiny' | 'base' | 'small'>('whisperModel', 'base'),
     language: config.get<string>('language', 'en'),

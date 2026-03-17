@@ -132,7 +132,7 @@ export class ModelManager {
     return vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: `SunYapper: Downloading ${model} model (${MODEL_SIZES[model]})${mirrorLabel}...`,
+        title: `yapper: Downloading ${model} model (${MODEL_SIZES[model]})${mirrorLabel}...`,
         cancellable: true,
       },
       async (progress, token) => {
@@ -141,7 +141,7 @@ export class ModelManager {
           const file = fs.createWriteStream(tmpPath);
 
           const request = (urlStr: string) => {
-            https.get(urlStr, { headers: { 'User-Agent': 'SunYapper' } }, (response) => {
+            https.get(urlStr, { headers: { 'User-Agent': 'yapper' } }, (response) => {
               if (response.statusCode === 302 || response.statusCode === 301) {
                 const redirectUrl = response.headers.location;
                 if (redirectUrl) {

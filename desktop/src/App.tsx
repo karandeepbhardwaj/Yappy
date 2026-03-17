@@ -271,13 +271,13 @@ export default function App() {
           >
             <div className="flex items-center space-x-4">
               <div className="relative flex items-center justify-center w-11 h-11 shrink-0 bg-[#f9f8f6] dark:bg-[#2a2928] rounded-xl border border-[#e5e3d9] dark:border-[#333230]">
-                <img src={logoImg} alt="SunYapper" className="w-8 h-8 object-contain" />
+                <img src={logoImg} alt="yapper" className="w-8 h-8 object-contain" />
                 <div className="absolute -bottom-1.5 -right-1.5 bg-white dark:bg-[#222120] rounded-full p-0.5 border border-[#e5e3d9] dark:border-[#333230]">
                   <Mic className="w-3.5 h-3.5 text-[#d97757] dark:text-[#e88a6c]" />
                 </div>
               </div>
               <h1 className="text-2xl font-serif font-medium tracking-tight text-[#1a1919] dark:text-[#fdfcfb]">
-                SunYapper
+                yapper
               </h1>
             </div>
 
@@ -492,7 +492,7 @@ export default function App() {
                     {/* VS Code connection prompt */}
                     {showVsCodePrompt && (
                       <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
-                        <p className="text-sm text-[#878681]">VS Code with SunYapper extension is required for refinement.</p>
+                        <p className="text-sm text-[#878681]">VS Code with yapper extension is required for refinement.</p>
                         <button
                           onClick={retryVsCodeConnection}
                           className="px-4 py-2 bg-[#d97757] text-white rounded-lg text-sm font-medium hover:bg-[#c66949] transition-colors"

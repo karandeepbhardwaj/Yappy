@@ -1,4 +1,4 @@
-# Security Report — SunYapper
+# Security Report — yapper
 
 **Version**: 0.3.0
 **Date**: March 2026
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-SunYapper is a voice-to-text dictation tool with two components: a VS Code extension and a Tauri desktop app. It is designed for **local-first operation** with offline speech-to-text. This report details the security posture for enterprise deployment.
+yapper is a voice-to-text dictation tool with two components: a VS Code extension and a Tauri desktop app. It is designed for **local-first operation** with offline speech-to-text. This report details the security posture for enterprise deployment.
 
 **Overall Risk**: MODERATE — suitable for general productivity with documented limitations.
 
@@ -26,7 +26,7 @@ SunYapper is a voice-to-text dictation tool with two components: a VS Code exten
 
 | Data | Destination | When | Can be disabled? |
 |------|-------------|------|-----------------|
-| Transcribed text | Microsoft Copilot servers | During refinement | Yes (`sunyapper.refinementEnabled: false`) |
+| Transcribed text | Microsoft Copilot servers | During refinement | Yes (`yapper.refinementEnabled: false`) |
 | Language code | Microsoft Copilot servers | During refinement | Yes |
 | Whisper model file | HuggingFace CDN (HTTPS) | First-time download only | Yes (bundle model in VSIX/DMG) |
 
@@ -38,7 +38,7 @@ SunYapper is a voice-to-text dictation tool with two components: a VS Code exten
 
 | Data | Location | Lifetime | Encrypted? |
 |------|----------|----------|-----------|
-| Audio recordings | `/tmp/sunyapper_*.wav` | Deleted after transcription | No |
+| Audio recordings | `/tmp/yapper_*.wav` | Deleted after transcription | No |
 | Transcriptions | In-memory (UI display) | Until app restart | No |
 | Whisper models | App bundle or user storage | Permanent | No |
 | VS Code settings | VS Code config | Permanent | No |
@@ -63,7 +63,7 @@ The WebSocket server binds exclusively to localhost. No remote connections are p
 - Copilot API: Via VS Code's built-in Copilot (TLS 1.2+, Microsoft infrastructure)
 
 ### No Telemetry
-SunYapper does not collect analytics, crash reports, or usage telemetry.
+yapper does not collect analytics, crash reports, or usage telemetry.
 
 ---
 
@@ -140,7 +140,7 @@ SunYapper does not collect analytics, crash reports, or usage telemetry.
 
 ## 6. Offline Operation
 
-SunYapper can operate **fully offline** with these limitations:
+yapper can operate **fully offline** with these limitations:
 
 | Feature | Offline? | Notes |
 |---------|----------|-------|
@@ -151,7 +151,7 @@ SunYapper can operate **fully offline** with these limitations:
 | VS Code actions | Partially | Requires VS Code but no internet |
 | Live transcription | Yes | All local |
 
-To operate fully offline: set `sunyapper.refinementEnabled: false`. Raw transcription still works without any network.
+To operate fully offline: set `yapper.refinementEnabled: false`. Raw transcription still works without any network.
 
 ---
 
@@ -184,19 +184,19 @@ To operate fully offline: set `sunyapper.refinementEnabled: false`. Raw transcri
 
 ### Before Deployment
 - [ ] Review Microsoft Copilot enterprise agreement for data handling
-- [ ] Configure `sunyapper.refinementEnabled: false` for sensitive environments
+- [ ] Configure `yapper.refinementEnabled: false` for sensitive environments
 - [ ] Deploy via internal software distribution (SCCM, Jamf, etc.)
 - [ ] Grant microphone permission via MDM policy
-- [ ] On macOS: remove quarantine attribute (`xattr -cr /Applications/SunYapper.app`) or sign with your enterprise certificate
+- [ ] On macOS: remove quarantine attribute (`xattr -cr /Applications/yapper.app`) or sign with your enterprise certificate
 - [ ] On Windows: consider code signing to avoid SmartScreen warnings
 
 ### Configuration for Maximum Privacy
 
 ```json
 {
-  "sunyapper.refinementEnabled": false,
-  "sunyapper.actionsEnabled": false,
-  "sunyapper.actionMode": "dictation"
+  "yapper.refinementEnabled": false,
+  "yapper.actionsEnabled": false,
+  "yapper.actionMode": "dictation"
 }
 ```
 
@@ -212,7 +212,7 @@ This gives offline-only dictation with no external data transmission.
 ## 9. Vulnerability Disclosure
 
 To report security vulnerabilities, open a private security advisory at:
-https://github.com/karandeepbhardwaj/SunYapper/security/advisories
+https://github.com/karandeepbhardwaj/yapper/security/advisories
 
 ---
 
@@ -220,7 +220,7 @@ https://github.com/karandeepbhardwaj/SunYapper/security/advisories
 
 | Component | License | Redistribution |
 |-----------|---------|---------------|
-| SunYapper | MIT | Free |
+| yapper | MIT | Free |
 | whisper.cpp | MIT | Free |
 | sox | GPL v2+ | Source available at sourceforge.net/projects/sox |
 | Tauri | MIT/Apache-2.0 | Free |

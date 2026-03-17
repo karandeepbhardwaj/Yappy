@@ -1,5 +1,5 @@
 // @ts-check
-// SunYapper VS Code WebView — two-column layout, settings bar
+// yapper VS Code WebView — two-column layout, settings bar
 (function () {
   // @ts-ignore
   const vscode = acquireVsCodeApi();
