@@ -1,4 +1,4 @@
-<h1 align="center">SunYapper</h1>
+<h1 align="center">Yapper</h1>
 
 <p align="center">
   <strong>Voice-powered productivity: dictation, commands, and app control</strong><br>
@@ -6,10 +6,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/karandeepbhardwaj/SunYapper/releases/latest">
-    <img src="https://img.shields.io/github/v/release/karandeepbhardwaj/SunYapper?style=flat-square" alt="Release">
+  <a href="https://github.com/karandeepbhardwaj/Yapper/releases/latest">
+    <img src="https://img.shields.io/github/v/release/karandeepbhardwaj/Yapper?style=flat-square" alt="Release">
   </a>
-  <a href="https://github.com/karandeepbhardwaj/SunYapper/blob/main/LICENSE">
+  <a href="https://github.com/karandeepbhardwaj/Yapper/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License">
   </a>
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey?style=flat-square" alt="Platform">
@@ -18,14 +18,14 @@
 ---
 
 <p align="center">
-  <img src="docs/sunyapper.png" width="700" alt="SunYapper — Idle">
+  <img src="docs/Yapper.png" width="700" alt="Yapper — Idle">
 </p>
 
 ---
 
-## What is SunYapper?
+## What is Yapper?
 
-SunYapper is a voice-powered productivity tool with three modes:
+Yapper is a voice-powered productivity tool with three modes:
 
 1. **Dictation** — Speak naturally, get polished English text. Works in any language.
 2. **VS Code Actions** — Say "run tests", "open settings", "search for TODO" — executes in VS Code.
@@ -37,33 +37,33 @@ All speech-to-text runs **locally** via whisper.cpp. AI refinement uses GitHub C
 
 | Platform                  | Download                                                                              | Size    | What's included                               |
 | ------------------------- | ------------------------------------------------------------------------------------- | ------- | --------------------------------------------- |
-| **macOS** (Apple Silicon) | [SunYapper.dmg](https://github.com/karandeepbhardwaj/SunYapper/releases/latest)       | ~140 MB | Desktop app + sox + whisper + base model      |
-| **Windows** (x64)         | [SunYapper-setup.exe](https://github.com/karandeepbhardwaj/SunYapper/releases/latest) | ~150 MB | Desktop app + sox + whisper + base model      |
-| **VS Code Extension**     | [sunyapper.vsix](https://github.com/karandeepbhardwaj/SunYapper/releases/latest)      | ~1.5 MB | Extension (model auto-downloads on first use) |
+| **macOS** (Apple Silicon) | [Yapper.dmg](https://github.com/karandeepbhardwaj/Yapper/releases/latest)       | ~140 MB | Desktop app + sox + whisper + base model      |
+| **Windows** (x64)         | [Yapper-setup.exe](https://github.com/karandeepbhardwaj/Yapper/releases/latest) | ~150 MB | Desktop app + sox + whisper + base model      |
+| **VS Code Extension**     | [Yapper.vsix](https://github.com/karandeepbhardwaj/Yapper/releases/latest)      | ~1.5 MB | Extension (model auto-downloads on first use) |
 
 ## Installation
 
 ### Desktop App — macOS
 
-1. Download `SunYapper.dmg` from [Releases](https://github.com/karandeepbhardwaj/SunYapper/releases/latest)
-2. Open the DMG and drag SunYapper to Applications
-3. **Important — first launch**: macOS will show "SunYapper is damaged" because the app is not notarized. Fix it by running this in Terminal:
+1. Download `Yapper.dmg` from [Releases](https://github.com/karandeepbhardwaj/Yapper/releases/latest)
+2. Open the DMG and drag Yapper to Applications
+3. **Important — first launch**: macOS will show "Yapper is damaged" because the app is not notarized. Fix it by running this in Terminal:
    ```bash
-   xattr -cr /Applications/SunYapper.app
+   xattr -cr /Applications/Yapper.app
    ```
-4. Open SunYapper from Applications
+4. Open Yapper from Applications
 5. Grant **Microphone** permission when prompted (System Settings → Privacy & Security → Microphone)
 
 ### Desktop App — Windows
 
-1. Download `SunYapper-setup.exe` from [Releases](https://github.com/karandeepbhardwaj/SunYapper/releases/latest)
+1. Download `Yapper-setup.exe` from [Releases](https://github.com/karandeepbhardwaj/Yapper/releases/latest)
 2. Run the installer (Windows SmartScreen may warn — click "More info" → "Run anyway")
-3. Open SunYapper from the Start menu
+3. Open Yapper from the Start menu
 
 ### VS Code Extension
 
-1. Download `sunyapper.vsix` from [Releases](https://github.com/karandeepbhardwaj/SunYapper/releases/latest)
-2. Install: `code --install-extension sunyapper-v0.3.0.vsix`
+1. Download `Yapper.vsix` from [Releases](https://github.com/karandeepbhardwaj/Yapper/releases/latest)
+2. Install: `code --install-extension Yapper-v0.3.0.vsix`
 3. Restart VS Code — the extension activates automatically
 4. The whisper model (~142MB) downloads automatically on first activation
 5. Press `Cmd+Shift+Y` (Mac) or `Ctrl+Shift+Y` (Win) to start dictating
@@ -150,7 +150,7 @@ pub trait AppPlugin: Send + Sync {
 
 ```
 ┌────────────────────────────────────┐      ┌──────────────────┐
-│  SunYapper Desktop (Tauri v2)      │      │  VS Code + Copilot│
+│  Yapper Desktop (Tauri v2)      │      │  VS Code + Copilot│
 │                                    │◄────►│                  │
 │  sox/rec       → mic capture       │ws:// │  CopilotBridge   │
 │  whisper-cli   → offline STT       │19542 │  IntentClassifier│
@@ -168,13 +168,13 @@ pub trait AppPlugin: Send + Sync {
 
 | Setting                           | Default     | Description                    |
 | --------------------------------- | ----------- | ------------------------------ |
-| `sunyapper.whisperModel`          | `base`      | Model: tiny, base, small       |
-| `sunyapper.language`              | `en`        | Source language                |
-| `sunyapper.actionMode`            | `dictation` | Mode: dictation or actions     |
-| `sunyapper.actionsEnabled`        | `true`      | Enable voice-triggered actions |
-| `sunyapper.actionAutoExecuteSafe` | `true`      | Auto-execute safe actions      |
-| `sunyapper.refinementEnabled`     | `true`      | Enable Copilot refinement      |
-| `sunyapper.copilotModelFamily`    | `gpt-4o`    | Copilot model for AI           |
+| `Yapper.whisperModel`          | `base`      | Model: tiny, base, small       |
+| `Yapper.language`              | `en`        | Source language                |
+| `Yapper.actionMode`            | `dictation` | Mode: dictation or actions     |
+| `Yapper.actionsEnabled`        | `true`      | Enable voice-triggered actions |
+| `Yapper.actionAutoExecuteSafe` | `true`      | Auto-execute safe actions      |
+| `Yapper.refinementEnabled`     | `true`      | Enable Copilot refinement      |
+| `Yapper.copilotModelFamily`    | `gpt-4o`    | Copilot model for AI           |
 
 ## Build from Source
 
@@ -185,20 +185,20 @@ pub trait AppPlugin: Send + Sync {
 brew install sox whisper-cpp rust node
 
 # Clone and build
-git clone https://github.com/karandeepbhardwaj/SunYapper.git
-cd SunYapper/desktop
+git clone https://github.com/karandeepbhardwaj/Yapper.git
+cd Yapper/desktop
 npm install
 node scripts/bundle-sidecars.cjs    # bundles sox + whisper + model (~142MB download)
 npx tauri build                     # outputs .app + .dmg
 
 # Remove quarantine for local builds too
-xattr -cr src-tauri/target/release/bundle/macos/SunYapper.app
+xattr -cr src-tauri/target/release/bundle/macos/Yapper.app
 ```
 
 ### VS Code Extension
 
 ```bash
-cd SunYapper
+cd Yapper
 npm install
 npm run bundle                      # esbuild bundles everything into out/extension.js
 npx @vscode/vsce package --no-dependencies  # outputs .vsix
@@ -208,7 +208,7 @@ npx @vscode/vsce package --no-dependencies  # outputs .vsix
 
 ```bash
 # Prerequisites: Node.js 18+, Rust, Visual Studio Build Tools
-cd SunYapper/desktop
+cd Yapper/desktop
 npm install
 node scripts/bundle-sidecars.cjs    # downloads sox + whisper for Windows
 npx tauri build                     # outputs NSIS .exe installer
